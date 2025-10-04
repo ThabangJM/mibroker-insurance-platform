@@ -1,0 +1,16 @@
+{
+  "name": "mibroker-dev-scripts",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:frontend": "npm run dev",
+    "dev:backend": "cd server && npm run dev",
+    "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "start:frontend": "npm run build && npm run preview",
+    "start:backend": "cd server && npm start",
+    "install:all": "npm install && cd server && npm install",
+    "build:all": "npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
