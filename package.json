@@ -1,16 +1,13 @@
 {
-  "name": "mibroker-insurance-platform",
+  "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "1.0.0",
-  "description": "MiBroker Insurance Platform - React TypeScript application for insurance quotes and comparisons",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
