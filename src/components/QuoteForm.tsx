@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ArrowLeft, ArrowRight, User, Phone, Mail, MapPin, Car, Home as HomeIcon, Shield, Building, CheckCircle, AlertCircle, Eye, FileText, AlertTriangle, Package, Mountain } from 'lucide-react';
+import { ArrowLeft, ArrowRight, User, Phone, Mail, Car, Home as HomeIcon, Shield, Building, CheckCircle, AlertCircle, Eye, FileText, AlertTriangle, Package, Mountain } from 'lucide-react';
 import { InsuranceType, Representative } from '../types';
 
 // Interface defining the props that the QuoteForm component expects
@@ -17,12 +17,15 @@ interface NeedsAnalysisData {
   currentSituation: {
     hasExistingInsurance: boolean;
     currentProvider?: string;
-    renewalDate?: string;
+    policyStartDate?: string;
     claimsHistory: {
       hasClaimsLastThreeYears: boolean;
       numberOfClaims?: number;
       totalClaimAmount?: number;
-      currentInsuranceStatus?: string;
+      damageType?: string;
+      damageTypeOther?: string;
+      incidentDescription?: string;
+      multipleClaimsExplanation?: string;
     };
   };
   
@@ -31,6 +34,7 @@ interface NeedsAnalysisData {
     preferredExcess: string;
     coverageLevel: 'basic' | 'comprehensive' | 'premium';
     additionalCoverage: string[];
+    additionalCoverRequirements?: string;
   };
   
   // Driver details (for auto insurance)
@@ -63,7 +67,37 @@ interface FormData {
     email: string;
     phone: string;
     idNumber: string;
-    city: string;
+    maritalStatus: string;
+    occupation: string;
+    // Physical address
+    streetNumber: string;
+    streetName: string;
+    village: string;
+    areaCode: string;
+    province: string;
+    country: string;
+    countryOther?: string; // For when "other" country is selected
+  };
+  
+  // Co-insured information (optional)
+  coInsured?: {
+    hasCoInsured: boolean;
+    firstName: string;
+    lastName: string;
+    idNumber: string;
+    phone: string;
+    email: string;
+    relationship: string;
+    relationshipOther?: string; // For when "other" relationship is selected
+    sameAddress: boolean;
+    // Address fields (only if sameAddress is false)
+    streetNumber?: string;
+    streetName?: string;
+    village?: string;
+    areaCode?: string;
+    province?: string;
+    country?: string;
+    countryOther?: string; // For when "other" country is selected
   };
   
   // Needs analysis data
@@ -108,7 +142,33 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
       email: '',
       phone: '',
       idNumber: '',
-      city: '',
+      maritalStatus: '',
+      occupation: '',
+      streetNumber: '',
+      streetName: '',
+      village: '',
+      areaCode: '',
+      province: '',
+      country: '',
+      countryOther: '',
+    },
+    coInsured: {
+      hasCoInsured: false,
+      firstName: '',
+      lastName: '',
+      idNumber: '',
+      phone: '',
+      email: '',
+      relationship: '',
+      relationshipOther: '',
+      sameAddress: true,
+      streetNumber: '',
+      streetName: '',
+      village: '',
+      areaCode: '',
+      province: '',
+      country: '',
+      countryOther: '',
     },
     needsAnalysis: {
       currentSituation: {
@@ -519,8 +579,97 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     const idError = validateSAIdNumber(formData.personalInfo.idNumber);
     if (idError) errors['personalInfo.idNumber'] = idError;
     
-    const cityError = validateRequired(formData.personalInfo.city, 'City');
-    if (cityError) errors['personalInfo.city'] = cityError;
+    // New field validations
+    const maritalStatusError = validateRequired(formData.personalInfo.maritalStatus, 'Marital status');
+    if (maritalStatusError) errors['personalInfo.maritalStatus'] = maritalStatusError;
+    
+    const occupationError = validateRequired(formData.personalInfo.occupation, 'Occupation');
+    if (occupationError) errors['personalInfo.occupation'] = occupationError;
+    
+    // Physical address validations
+    const streetNumberError = validateRequired(formData.personalInfo.streetNumber, 'Street number');
+    if (streetNumberError) errors['personalInfo.streetNumber'] = streetNumberError;
+    
+    const streetNameError = validateRequired(formData.personalInfo.streetName, 'Street name');
+    if (streetNameError) errors['personalInfo.streetName'] = streetNameError;
+    
+    const villageError = validateRequired(formData.personalInfo.village, 'Village/City');
+    if (villageError) errors['personalInfo.village'] = villageError;
+    
+    const areaCodeError = validateRequired(formData.personalInfo.areaCode, 'Area code');
+    if (areaCodeError) errors['personalInfo.areaCode'] = areaCodeError;
+    else if (!/^\d{4}$/.test(formData.personalInfo.areaCode)) {
+      errors['personalInfo.areaCode'] = 'Area code must be 4 digits';
+    }
+    
+    const provinceError = validateRequired(formData.personalInfo.province, 'Province');
+    if (provinceError) errors['personalInfo.province'] = provinceError;
+    
+    const countryError = validateRequired(formData.personalInfo.country, 'Country');
+    if (countryError) errors['personalInfo.country'] = countryError;
+    
+    // Validate country other specification if "other" is selected
+    if (formData.personalInfo.country === 'other') {
+      const countryOtherError = validateRequired(formData.personalInfo.countryOther || '', 'Country specification');
+      if (countryOtherError) errors['personalInfo.countryOther'] = countryOtherError;
+    }
+    
+    // Co-insured validations (if co-insured is added)
+    if (formData.coInsured?.hasCoInsured) {
+      const coFirstNameError = validateRequired(formData.coInsured.firstName, 'Co-insured first name');
+      if (coFirstNameError) errors['coInsured.firstName'] = coFirstNameError;
+      
+      const coLastNameError = validateRequired(formData.coInsured.lastName, 'Co-insured last name');
+      if (coLastNameError) errors['coInsured.lastName'] = coLastNameError;
+      
+      const coIdError = validateSAIdNumber(formData.coInsured.idNumber);
+      if (coIdError) errors['coInsured.idNumber'] = coIdError;
+      
+      const coPhoneError = validatePhone(formData.coInsured.phone);
+      if (coPhoneError) errors['coInsured.phone'] = coPhoneError;
+      
+      const coEmailError = validateEmail(formData.coInsured.email);
+      if (coEmailError) errors['coInsured.email'] = coEmailError;
+      
+      const coRelationshipError = validateRequired(formData.coInsured.relationship, 'Relationship to client');
+      if (coRelationshipError) errors['coInsured.relationship'] = coRelationshipError;
+      
+      // Validate relationship other specification if "other" is selected
+      if (formData.coInsured.relationship === 'other') {
+        const relationshipOtherError = validateRequired(formData.coInsured.relationshipOther || '', 'Relationship specification');
+        if (relationshipOtherError) errors['coInsured.relationshipOther'] = relationshipOtherError;
+      }
+      
+      // Validate co-insured address if different from client
+      if (!formData.coInsured.sameAddress) {
+        const coStreetNumberError = validateRequired(formData.coInsured.streetNumber || '', 'Co-insured street number');
+        if (coStreetNumberError) errors['coInsured.streetNumber'] = coStreetNumberError;
+        
+        const coStreetNameError = validateRequired(formData.coInsured.streetName || '', 'Co-insured street name');
+        if (coStreetNameError) errors['coInsured.streetName'] = coStreetNameError;
+        
+        const coVillageError = validateRequired(formData.coInsured.village || '', 'Co-insured village/city');
+        if (coVillageError) errors['coInsured.village'] = coVillageError;
+        
+        const coAreaCodeError = validateRequired(formData.coInsured.areaCode || '', 'Co-insured area code');
+        if (coAreaCodeError) errors['coInsured.areaCode'] = coAreaCodeError;
+        else if (formData.coInsured.areaCode && !/^\d{4}$/.test(formData.coInsured.areaCode)) {
+          errors['coInsured.areaCode'] = 'Area code must be 4 digits';
+        }
+        
+        const coProvinceError = validateRequired(formData.coInsured.province || '', 'Co-insured province');
+        if (coProvinceError) errors['coInsured.province'] = coProvinceError;
+        
+        const coCountryError = validateRequired(formData.coInsured.country || '', 'Co-insured country');
+        if (coCountryError) errors['coInsured.country'] = coCountryError;
+        
+        // Validate co-insured country other specification if "other" is selected
+        if (formData.coInsured.country === 'other') {
+          const countryOtherError = validateRequired(formData.coInsured.countryOther || '', 'Co-insured country specification');
+          if (countryOtherError) errors['coInsured.countryOther'] = countryOtherError;
+        }
+      }
+    }
     
     setValidationErrors(prev => ({...prev, ...errors}));
     return Object.keys(errors).length === 0;
@@ -536,7 +685,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
       }
     }
     
-    // If has claims, number of claims, total amount, and current status are required
+    // If has claims, number of claims, total amount, damage type and incident description are required
     if (formData.needsAnalysis.currentSituation.claimsHistory.hasClaimsLastThreeYears) {
       if (!formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims) {
         errors['needsAnalysis.currentSituation.claimsHistory.numberOfClaims'] = 'Number of claims is required';
@@ -544,8 +693,21 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
       if (!formData.needsAnalysis.currentSituation.claimsHistory.totalClaimAmount) {
         errors['needsAnalysis.currentSituation.claimsHistory.totalClaimAmount'] = 'Total claim amount is required';
       }
-      if (!formData.needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus) {
-        errors['needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus'] = 'Current insurance status is required';
+      if (!formData.needsAnalysis.currentSituation.claimsHistory.damageType) {
+        errors['needsAnalysis.currentSituation.claimsHistory.damageType'] = 'Type of damage is required';
+      }
+      if (formData.needsAnalysis.currentSituation.claimsHistory.damageType === 'other' && 
+          !formData.needsAnalysis.currentSituation.claimsHistory.damageTypeOther?.trim()) {
+        errors['needsAnalysis.currentSituation.claimsHistory.damageTypeOther'] = 'Please specify the type of damage';
+      }
+      if (!formData.needsAnalysis.currentSituation.claimsHistory.incidentDescription?.trim()) {
+        errors['needsAnalysis.currentSituation.claimsHistory.incidentDescription'] = 'Incident description is required';
+      }
+      // If 2 or more claims, explanation is required
+      if (formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims && 
+          formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims >= 2 &&
+          !formData.needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation?.trim()) {
+        errors['needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation'] = 'Explanation is required for multiple claims';
       }
     }
     
@@ -555,7 +717,10 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         const newErrors = { ...prev };
         delete newErrors['needsAnalysis.currentSituation.claimsHistory.numberOfClaims'];
         delete newErrors['needsAnalysis.currentSituation.claimsHistory.totalClaimAmount'];
-        delete newErrors['needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus'];
+        delete newErrors['needsAnalysis.currentSituation.claimsHistory.damageType'];
+        delete newErrors['needsAnalysis.currentSituation.claimsHistory.damageTypeOther'];
+        delete newErrors['needsAnalysis.currentSituation.claimsHistory.incidentDescription'];
+        delete newErrors['needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation'];
         return newErrors;
       });
     }
@@ -637,6 +802,63 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     
     const vehicleValueError = validateRequired(formData.insuranceInfo?.vehicleValue || '', 'Vehicle value');
     if (vehicleValueError) errors['insuranceInfo.vehicleValue'] = vehicleValueError;
+
+    // Validate driver same as insured is answered
+    if (formData.insuranceInfo?.driverSameAsInsured === undefined) {
+      errors['insuranceInfo.driverSameAsInsured'] = 'Please specify if the driver is the same as the insured';
+    }
+
+    // If driver is different, validate all driver fields
+    if (formData.insuranceInfo?.driverSameAsInsured === false) {
+      const driverFirstNameError = validateRequired(formData.insuranceInfo?.driverFirstName || '', 'Driver first name');
+      if (driverFirstNameError) errors['insuranceInfo.driverFirstName'] = driverFirstNameError;
+
+      const driverLastNameError = validateRequired(formData.insuranceInfo?.driverLastName || '', 'Driver last name');
+      if (driverLastNameError) errors['insuranceInfo.driverLastName'] = driverLastNameError;
+
+      const driverIdNumberError = validateSAIdNumber(formData.insuranceInfo?.driverIdNumber || '');
+      if (driverIdNumberError) errors['insuranceInfo.driverIdNumber'] = driverIdNumberError;
+
+      const driverContactNumberError = validatePhone(formData.insuranceInfo?.driverContactNumber || '');
+      if (driverContactNumberError) errors['insuranceInfo.driverContactNumber'] = driverContactNumberError;
+
+      const driverOccupationError = validateRequired(formData.insuranceInfo?.driverOccupation || '', 'Driver occupation');
+      if (driverOccupationError) errors['insuranceInfo.driverOccupation'] = driverOccupationError;
+
+      const driverLicenseTypeError = validateRequired(formData.insuranceInfo?.driverLicenseType || '', 'Driver license type');
+      if (driverLicenseTypeError) errors['insuranceInfo.driverLicenseType'] = driverLicenseTypeError;
+
+      const driverLicenseIssueDateError = validateRequired(formData.insuranceInfo?.driverLicenseIssueDate || '', 'License issue date');
+      if (driverLicenseIssueDateError) errors['insuranceInfo.driverLicenseIssueDate'] = driverLicenseIssueDateError;
+
+      // If international license, country is required
+      if (formData.insuranceInfo?.driverLicenseType === 'international') {
+        const internationalLicenseCountryError = validateRequired(formData.insuranceInfo?.internationalLicenseCountry || '', 'International license country');
+        if (internationalLicenseCountryError) errors['insuranceInfo.internationalLicenseCountry'] = internationalLicenseCountryError;
+      }
+
+      const driverClaimsHistoryError = validateRequired(formData.insuranceInfo?.driverClaimsHistory || '', 'Driver claims history');
+      if (driverClaimsHistoryError) errors['insuranceInfo.driverClaimsHistory'] = driverClaimsHistoryError;
+
+      // If more than two claims, number of claims is required
+      if (formData.insuranceInfo?.driverClaimsHistory === 'more-than-two') {
+        if (!formData.insuranceInfo?.driverNumberOfClaims || parseInt(formData.insuranceInfo.driverNumberOfClaims) < 3) {
+          errors['insuranceInfo.driverNumberOfClaims'] = 'Please enter the number of claims (minimum 3)';
+        }
+      }
+
+      const driverRelationshipError = validateRequired(formData.insuranceInfo?.driverRelationship || '', 'Driver relationship');
+      if (driverRelationshipError) errors['insuranceInfo.driverRelationship'] = driverRelationshipError;
+
+      // If relationship is "other", specification is required
+      if (formData.insuranceInfo?.driverRelationship === 'other') {
+        const driverRelationshipOtherError = validateRequired(formData.insuranceInfo?.driverRelationshipOther || '', 'Relationship specification');
+        if (driverRelationshipOtherError) errors['insuranceInfo.driverRelationshipOther'] = driverRelationshipOtherError;
+      }
+
+      const driverMaritalStatusError = validateRequired(formData.insuranceInfo?.driverMaritalStatus || '', 'Driver marital status');
+      if (driverMaritalStatusError) errors['insuranceInfo.driverMaritalStatus'] = driverMaritalStatusError;
+    }
     
     setValidationErrors(prev => ({...prev, ...errors}));
     return Object.keys(errors).length === 0;
@@ -665,20 +887,92 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     
     const errors: {[key: string]: string} = {};
     
-    // Property address is required for commercial property only
-    if (insuranceType === 'commercial-property') {
-      const propertyAddressError = validateRequired(formData.insuranceInfo?.propertyAddress || '', 'Property address');
-      if (propertyAddressError) errors.propertyAddress = propertyAddressError;
+    // Check if property address same as residential is selected
+    if (formData.insuranceInfo?.propertySameAsResidential === undefined || formData.insuranceInfo?.propertySameAsResidential === null) {
+      errors['insuranceInfo.propertySameAsResidential'] = 'Please indicate if property address is same as residential address';
     }
     
-    const propertyTypeError = validateRequired(formData.insuranceInfo?.propertyType || '', 'Property type');
-    if (propertyTypeError) errors.propertyType = propertyTypeError;
+    // Physical address validation (only if property address is different from residential)
+    if (formData.insuranceInfo?.propertySameAsResidential === false) {
+      const propertyStreetNumberError = validateRequired(formData.insuranceInfo?.propertyStreetNumber || '', 'Street number');
+      if (propertyStreetNumberError) errors['insuranceInfo.propertyStreetNumber'] = propertyStreetNumberError;
+      
+      const propertyStreetNameError = validateRequired(formData.insuranceInfo?.propertyStreetName || '', 'Street name');
+      if (propertyStreetNameError) errors['insuranceInfo.propertyStreetName'] = propertyStreetNameError;
+      
+      const propertySuburbError = validateRequired(formData.insuranceInfo?.propertySuburb || '', 'Suburb/Village');
+      if (propertySuburbError) errors['insuranceInfo.propertySuburb'] = propertySuburbError;
+      
+      const propertyCityError = validateRequired(formData.insuranceInfo?.propertyCity || '', 'City');
+      if (propertyCityError) errors['insuranceInfo.propertyCity'] = propertyCityError;
+      
+      const propertyPostalCodeError = validateRequired(formData.insuranceInfo?.propertyPostalCode || '', 'Postal code');
+      if (propertyPostalCodeError) errors['insuranceInfo.propertyPostalCode'] = propertyPostalCodeError;
+      
+      const propertyProvinceError = validateRequired(formData.insuranceInfo?.propertyProvince || '', 'Province');
+      if (propertyProvinceError) errors['insuranceInfo.propertyProvince'] = propertyProvinceError;
+    }
+    
+    // Property type and value
+    const propertyTypeError = validateRequired(formData.insuranceInfo?.propertyType || '', 'Building type');
+    if (propertyTypeError) errors['insuranceInfo.propertyType'] = propertyTypeError;
+    
+    // If "other" building type, require description
+    if (formData.insuranceInfo?.propertyType === 'other') {
+      const propertyTypeOtherError = validateRequired(formData.insuranceInfo?.propertyTypeOther || '', 'Building type description');
+      if (propertyTypeOtherError) errors['insuranceInfo.propertyTypeOther'] = propertyTypeOtherError;
+    }
     
     const propertyValueError = validateRequired(formData.insuranceInfo?.propertyValue || '', 'Property value');
-    if (propertyValueError) errors.propertyValue = propertyValueError;
+    if (propertyValueError) errors['insuranceInfo.propertyValue'] = propertyValueError;
     
-    const propertyProvinceError = validateRequired(formData.insuranceInfo?.propertyProvince || '', 'Property province');
-    if (propertyProvinceError) errors.propertyProvince = propertyProvinceError;
+    // Building construction details
+    const wallMaterialError = validateRequired(formData.insuranceInfo?.wallMaterial || '', 'Wall construction material');
+    if (wallMaterialError) errors['insuranceInfo.wallMaterial'] = wallMaterialError;
+    
+    // If "other" wall material, require specification
+    if (formData.insuranceInfo?.wallMaterial === 'other') {
+      const wallMaterialOtherError = validateRequired(formData.insuranceInfo?.wallMaterialOther || '', 'Wall material specification');
+      if (wallMaterialOtherError) errors['insuranceInfo.wallMaterialOther'] = wallMaterialOtherError;
+    }
+    
+    const roofMaterialError = validateRequired(formData.insuranceInfo?.roofMaterial || '', 'Roof material');
+    if (roofMaterialError) errors['insuranceInfo.roofMaterial'] = roofMaterialError;
+    
+    // If "other" roof material, require specification
+    if (formData.insuranceInfo?.roofMaterial === 'other') {
+      const roofMaterialOtherError = validateRequired(formData.insuranceInfo?.roofMaterialOther || '', 'Roof material specification');
+      if (roofMaterialOtherError) errors['insuranceInfo.roofMaterialOther'] = roofMaterialOtherError;
+    }
+    
+    const yearBuiltError = validateRequired(formData.insuranceInfo?.yearBuilt || '', 'Year built');
+    if (yearBuiltError) errors['insuranceInfo.yearBuilt'] = yearBuiltError;
+    
+    const numberOfStoreysError = validateRequired(formData.insuranceInfo?.numberOfStoreys || '', 'Number of storeys');
+    if (numberOfStoreysError) errors['insuranceInfo.numberOfStoreys'] = numberOfStoreysError;
+    
+    // If "5+" storeys, require exact number
+    if (formData.insuranceInfo?.numberOfStoreys === '5+') {
+      const numberOfStoreysExactError = validateRequired(formData.insuranceInfo?.numberOfStoreysExact || '', 'Exact number of storeys');
+      if (numberOfStoreysExactError) errors['insuranceInfo.numberOfStoreysExact'] = numberOfStoreysExactError;
+    }
+    
+    const floorAreaError = validateRequired(formData.insuranceInfo?.floorArea || '', 'Floor area');
+    if (floorAreaError) errors['insuranceInfo.floorArea'] = floorAreaError;
+    
+    // Building use
+    const buildingUseError = validateRequired(formData.insuranceInfo?.buildingUse || '', 'Building use');
+    if (buildingUseError) errors['insuranceInfo.buildingUse'] = buildingUseError;
+    
+    // If commercial or mixed use, business type is required
+    if (formData.insuranceInfo?.buildingUse === 'commercial' || formData.insuranceInfo?.buildingUse === 'mixed') {
+      const businessTypeError = validateRequired(formData.insuranceInfo?.businessType || '', 'Type of business');
+      if (businessTypeError) errors['insuranceInfo.businessType'] = businessTypeError;
+    }
+    
+    // Building condition
+    const buildingConditionError = validateRequired(formData.insuranceInfo?.buildingCondition || '', 'Building condition');
+    if (buildingConditionError) errors['insuranceInfo.buildingCondition'] = buildingConditionError;
     
     setValidationErrors(prev => ({...prev, ...errors}));
     return Object.keys(errors).length === 0;
@@ -1207,6 +1501,48 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         isValid = true;
     }
     
+    // If validation passed, clear any lingering errors from previous attempts on this step
+    if (isValid) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        // Clear errors related to the current step
+        Object.keys(newErrors).forEach(key => {
+          // Check if the error belongs to the current step's section
+          const section = key.split('.')[0];
+          const stepSections = {
+            'personal': ['personalInfo'],
+            'current-situation': ['currentSituation'],
+            'coverage-needs': ['coverageNeeds'],
+            'insurance-specific': ['insuranceInfo'],
+            'vehicle-details': ['insuranceInfo'],
+            'driver-details': ['insuranceInfo'],
+            'property-details': ['insuranceInfo'],
+            'business-details': ['insuranceInfo'],
+            'property-usage': ['insuranceInfo'],
+            'business-assets': ['insuranceInfo'],
+            'fleet-details': ['insuranceInfo'],
+            'transport-operations': ['insuranceInfo'],
+            'scheme-details': ['insuranceInfo'],
+            'common-areas': ['insuranceInfo'],
+            'asset-details': ['insuranceInfo'],
+            'operations': ['insuranceInfo'],
+            'risk-factors': ['insuranceInfo'],
+            'preferences': ['insuranceInfo'],
+            'project-details': ['insuranceInfo'],
+            'construction-type': ['insuranceInfo'],
+            'consent': ['consent'],
+            'e-hailing-details': ['insuranceInfo']
+          } as Record<string, string[]>;
+          
+          const currentStepSections = stepSections[stepId] || [];
+          if (currentStepSections.includes(section)) {
+            delete newErrors[key];
+          }
+        });
+        return newErrors;
+      });
+    }
+    
     return isValid;
   };
 
@@ -1384,65 +1720,797 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         </div>
       </div>
 
-      {/* ID Number and City Row */}
+      {/* ID Number Row */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">
+          ID Number *
+        </label>
+        {/* South African ID number input */}
+        <input
+          type="text"
+          value={formData.personalInfo.idNumber}
+          onChange={(e) => updateFormData('personalInfo', 'idNumber', e.target.value)}
+          className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+            hasFieldError('personalInfo.idNumber') 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-blue-500'
+          }`}
+          placeholder="8001015009087"
+          maxLength={13}
+        />
+        {hasFieldError('personalInfo.idNumber') && (
+          <p className="mt-2 text-sm text-red-600 flex items-center">
+            <AlertTriangle className="w-4 h-4 mr-1" />
+            {getFieldError('personalInfo.idNumber')}
+          </p>
+        )}
+      </div>
+
+      {/* Marital Status and Occupation Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
-            ID Number *
+            Marital Status *
           </label>
-          {/* South African ID number input */}
-          <input
-            type="text"
-            value={formData.personalInfo.idNumber}
-            onChange={(e) => updateFormData('personalInfo', 'idNumber', e.target.value)}
+          <select
+            value={formData.personalInfo.maritalStatus}
+            onChange={(e) => updateFormData('personalInfo', 'maritalStatus', e.target.value)}
             className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
-              hasFieldError('personalInfo.idNumber') 
+              hasFieldError('personalInfo.maritalStatus') 
                 ? 'border-red-300 focus:border-red-500' 
                 : 'border-gray-200 focus:border-blue-500'
             }`}
-            placeholder="8001015009087"
-            maxLength={13}
-          />
-          {hasFieldError('personalInfo.idNumber') && (
+          >
+            <option value="">Select marital status</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+            <option value="separated">Separated</option>
+          </select>
+          {hasFieldError('personalInfo.maritalStatus') && (
             <p className="mt-2 text-sm text-red-600 flex items-center">
               <AlertTriangle className="w-4 h-4 mr-1" />
-              {getFieldError('personalInfo.idNumber')}
+              {getFieldError('personalInfo.maritalStatus')}
             </p>
           )}
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
-            City *
+            Occupation *
           </label>
-          {/* City dropdown with South African cities */}
-          <div className="relative">
-            <MapPin className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+          <select
+            value={formData.personalInfo.occupation}
+            onChange={(e) => updateFormData('personalInfo', 'occupation', e.target.value)}
+            className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+              hasFieldError('personalInfo.occupation') 
+                ? 'border-red-300 focus:border-red-500' 
+                : 'border-gray-200 focus:border-blue-500'
+            }`}
+          >
+            <option value="">Select occupation</option>
+            <option value="self-employed">Self-Employed</option>
+            <option value="employed">Work for an Employer</option>
+            <option value="pensioner">Pensioner</option>
+            <option value="unemployed">Unemployed</option>
+          </select>
+          {hasFieldError('personalInfo.occupation') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('personalInfo.occupation')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Physical Address Section */}
+      <div className="bg-blue-50 p-6 rounded-xl space-y-4 border-2 border-blue-200">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">Physical Address</h4>
+        
+        {/* Street Number and Street Name Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Street Number *
+            </label>
+            <input
+              type="text"
+              value={formData.personalInfo.streetNumber}
+              onChange={(e) => updateFormData('personalInfo', 'streetNumber', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.streetNumber') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., 123"
+            />
+            {hasFieldError('personalInfo.streetNumber') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.streetNumber')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Street Name *
+            </label>
+            <input
+              type="text"
+              value={formData.personalInfo.streetName}
+              onChange={(e) => updateFormData('personalInfo', 'streetName', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.streetName') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., Main Street"
+            />
+            {hasFieldError('personalInfo.streetName') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.streetName')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Village/City and Area Code Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Village / City *
+            </label>
+            <input
+              type="text"
+              value={formData.personalInfo.village}
+              onChange={(e) => updateFormData('personalInfo', 'village', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.village') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., Sandton"
+            />
+            {hasFieldError('personalInfo.village') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.village')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Area Code *
+            </label>
+            <input
+              type="text"
+              value={formData.personalInfo.areaCode}
+              onChange={(e) => updateFormData('personalInfo', 'areaCode', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.areaCode') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., 2196"
+              maxLength={4}
+            />
+            {hasFieldError('personalInfo.areaCode') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.areaCode')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Province and Country Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Province *
+            </label>
             <select
-              value={formData.personalInfo.city}
-              onChange={(e) => updateFormData('personalInfo', 'city', e.target.value)}
-              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
-                hasFieldError('personalInfo.city') 
+              value={formData.personalInfo.province}
+              onChange={(e) => updateFormData('personalInfo', 'province', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.province') 
                   ? 'border-red-300 focus:border-red-500' 
                   : 'border-gray-200 focus:border-blue-500'
               }`}
             >
-              <option value="">Select your city</option>
-              {/* Major South African cities */}
-              <option value="johannesburg">Johannesburg</option>
-              <option value="cape-town">Cape Town</option>
-              <option value="durban">Durban</option>
-              <option value="pretoria">Pretoria</option>
-              <option value="port-elizabeth">Port Elizabeth</option>
-              <option value="bloemfontein">Bloemfontein</option>
+              <option value="">Select province</option>
+              <option value="gauteng">Gauteng</option>
+              <option value="western-cape">Western Cape</option>
+              <option value="eastern-cape">Eastern Cape</option>
+              <option value="kwazulu-natal">KwaZulu-Natal</option>
+              <option value="free-state">Free State</option>
+              <option value="limpopo">Limpopo</option>
+              <option value="mpumalanga">Mpumalanga</option>
+              <option value="north-west">North West</option>
+              <option value="northern-cape">Northern Cape</option>
             </select>
+            {hasFieldError('personalInfo.province') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.province')}
+              </p>
+            )}
           </div>
-          {hasFieldError('personalInfo.city') && (
-            <p className="mt-2 text-sm text-red-600 flex items-center">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              {getFieldError('personalInfo.city')}
-            </p>
-          )}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Country *
+            </label>
+            <select
+              value={formData.personalInfo.country}
+              onChange={(e) => updateFormData('personalInfo', 'country', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.country') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select country</option>
+              <option value="south-africa">South Africa</option>
+              <option value="botswana">Botswana</option>
+              <option value="lesotho">Lesotho</option>
+              <option value="namibia">Namibia</option>
+              <option value="eswatini">Eswatini</option>
+              <option value="zimbabwe">Zimbabwe</option>
+              <option value="mozambique">Mozambique</option>
+              <option value="zambia">Zambia</option>
+              <option value="other">Other</option>
+            </select>
+            {hasFieldError('personalInfo.country') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.country')}
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Country Other Specification */}
+        {formData.personalInfo.country === 'other' && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Please Specify Country *
+            </label>
+            <input
+              type="text"
+              value={formData.personalInfo.countryOther || ''}
+              onChange={(e) => updateFormData('personalInfo', 'countryOther', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('personalInfo.countryOther') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="Enter country name"
+            />
+            {hasFieldError('personalInfo.countryOther') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('personalInfo.countryOther')}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Co-Insured Section */}
+      <div className="bg-green-50 p-6 rounded-xl space-y-4 border-2 border-green-200">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-gray-900">Co-Insured Information (Optional)</h4>
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.coInsured?.hasCoInsured || false}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                coInsured: {
+                  ...prev.coInsured!,
+                  hasCoInsured: e.target.checked
+                }
+              }))}
+              className="mr-2 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Add Co-Insured</span>
+          </label>
+        </div>
+
+        {formData.coInsured?.hasCoInsured && (
+          <div className="space-y-6">
+            {/* Co-Insured Name Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  First Name *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.coInsured?.firstName || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      coInsured: {
+                        ...prev.coInsured!,
+                        firstName: e.target.value
+                      }
+                    }))}
+                    className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                      hasFieldError('coInsured.firstName') 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-gray-200 focus:border-blue-500'
+                    }`}
+                    placeholder="Enter first name"
+                  />
+                </div>
+                {hasFieldError('coInsured.firstName') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.firstName')}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Last Name *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.coInsured?.lastName || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      coInsured: {
+                        ...prev.coInsured!,
+                        lastName: e.target.value
+                      }
+                    }))}
+                    className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                      hasFieldError('coInsured.lastName') 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-gray-200 focus:border-blue-500'
+                    }`}
+                    placeholder="Enter last name"
+                  />
+                </div>
+                {hasFieldError('coInsured.lastName') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.lastName')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Co-Insured ID and Phone Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  ID Number *
+                </label>
+                <input
+                  type="text"
+                  value={formData.coInsured?.idNumber || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    coInsured: {
+                      ...prev.coInsured!,
+                      idNumber: e.target.value
+                    }
+                  }))}
+                  className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                    hasFieldError('coInsured.idNumber') 
+                      ? 'border-red-300 focus:border-red-500' 
+                      : 'border-gray-200 focus:border-blue-500'
+                  }`}
+                  placeholder="8001015009087"
+                  maxLength={13}
+                />
+                {hasFieldError('coInsured.idNumber') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.idNumber')}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Phone Number *
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.coInsured?.phone || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      coInsured: {
+                        ...prev.coInsured!,
+                        phone: e.target.value
+                      }
+                    }))}
+                    className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                      hasFieldError('coInsured.phone') 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-gray-200 focus:border-blue-500'
+                    }`}
+                    placeholder="083 123 4567"
+                  />
+                </div>
+                {hasFieldError('coInsured.phone') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.phone')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Co-Insured Email and Relationship Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={formData.coInsured?.email || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      coInsured: {
+                        ...prev.coInsured!,
+                        email: e.target.value
+                      }
+                    }))}
+                    className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                      hasFieldError('coInsured.email') 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-gray-200 focus:border-blue-500'
+                    }`}
+                    placeholder="email@example.com"
+                  />
+                </div>
+                {hasFieldError('coInsured.email') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.email')}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Relationship to Client *
+                </label>
+                <select
+                  value={formData.coInsured?.relationship || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    coInsured: {
+                      ...prev.coInsured!,
+                      relationship: e.target.value
+                    }
+                  }))}
+                  className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                    hasFieldError('coInsured.relationship') 
+                      ? 'border-red-300 focus:border-red-500' 
+                      : 'border-gray-200 focus:border-blue-500'
+                  }`}
+                >
+                  <option value="">Select relationship</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="partner">Partner</option>
+                  <option value="parent">Parent</option>
+                  <option value="child">Child</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="other-family">Other Family Member</option>
+                  <option value="business-partner">Business Partner</option>
+                  <option value="other">Other</option>
+                </select>
+                {hasFieldError('coInsured.relationship') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.relationship')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Relationship Other Specification */}
+            {formData.coInsured?.relationship === 'other' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Please Specify Relationship *
+                </label>
+                <input
+                  type="text"
+                  value={formData.coInsured?.relationshipOther || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    coInsured: {
+                      ...prev.coInsured!,
+                      relationshipOther: e.target.value
+                    }
+                  }))}
+                  className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                    hasFieldError('coInsured.relationshipOther') 
+                      ? 'border-red-300 focus:border-red-500' 
+                      : 'border-gray-200 focus:border-blue-500'
+                  }`}
+                  placeholder="e.g., Friend, Colleague"
+                />
+                {hasFieldError('coInsured.relationshipOther') && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    {getFieldError('coInsured.relationshipOther')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Same Address Checkbox */}
+            <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.coInsured?.sameAddress || false}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    coInsured: {
+                      ...prev.coInsured!,
+                      sameAddress: e.target.checked
+                    }
+                  }))}
+                  className="mr-3 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Co-insured has the same address as client</span>
+              </label>
+            </div>
+
+            {/* Co-Insured Address (only if different address) */}
+            {!formData.coInsured?.sameAddress && (
+              <div className="bg-yellow-50 p-4 rounded-lg space-y-4 border-2 border-yellow-200">
+                <h5 className="text-md font-semibold text-gray-900">Co-Insured Physical Address</h5>
+                
+                {/* Street Number and Street Name Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Street Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coInsured?.streetNumber || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          streetNumber: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.streetNumber') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                      placeholder="e.g., 123"
+                    />
+                    {hasFieldError('coInsured.streetNumber') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.streetNumber')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Street Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coInsured?.streetName || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          streetName: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.streetName') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                      placeholder="e.g., Main Street"
+                    />
+                    {hasFieldError('coInsured.streetName') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.streetName')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Village/City and Area Code Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Village / City *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coInsured?.village || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          village: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.village') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                      placeholder="e.g., Sandton"
+                    />
+                    {hasFieldError('coInsured.village') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.village')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Area Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coInsured?.areaCode || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          areaCode: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.areaCode') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                      placeholder="e.g., 2196"
+                      maxLength={4}
+                    />
+                    {hasFieldError('coInsured.areaCode') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.areaCode')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Province and Country Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Province *
+                    </label>
+                    <select
+                      value={formData.coInsured?.province || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          province: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.province') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                    >
+                      <option value="">Select province</option>
+                      <option value="gauteng">Gauteng</option>
+                      <option value="western-cape">Western Cape</option>
+                      <option value="eastern-cape">Eastern Cape</option>
+                      <option value="kwazulu-natal">KwaZulu-Natal</option>
+                      <option value="free-state">Free State</option>
+                      <option value="limpopo">Limpopo</option>
+                      <option value="mpumalanga">Mpumalanga</option>
+                      <option value="north-west">North West</option>
+                      <option value="northern-cape">Northern Cape</option>
+                    </select>
+                    {hasFieldError('coInsured.province') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.province')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Country *
+                    </label>
+                    <select
+                      value={formData.coInsured?.country || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          country: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.country') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                    >
+                      <option value="">Select country</option>
+                      <option value="south-africa">South Africa</option>
+                      <option value="botswana">Botswana</option>
+                      <option value="lesotho">Lesotho</option>
+                      <option value="namibia">Namibia</option>
+                      <option value="eswatini">Eswatini</option>
+                      <option value="zimbabwe">Zimbabwe</option>
+                      <option value="mozambique">Mozambique</option>
+                      <option value="zambia">Zambia</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {hasFieldError('coInsured.country') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.country')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Co-Insured Country Other Specification */}
+                {formData.coInsured?.country === 'other' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Please Specify Country *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coInsured?.countryOther || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        coInsured: {
+                          ...prev.coInsured!,
+                          countryOther: e.target.value
+                        }
+                      }))}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                        hasFieldError('coInsured.countryOther') 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-gray-200 focus:border-blue-500'
+                      }`}
+                      placeholder="Enter country name"
+                    />
+                    {hasFieldError('coInsured.countryOther') && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {getFieldError('coInsured.countryOther')}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1529,18 +2597,18 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
 
             <div className="bg-blue-50 p-4 rounded-lg">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Policy Renewal Date (if known)
+                When did this Policy Start?
               </label>
               <input
                 type="date"
-                value={formData.needsAnalysis.currentSituation.renewalDate || ''}
+                value={formData.needsAnalysis.currentSituation.policyStartDate || ''}
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
                   needsAnalysis: {
                     ...prev.needsAnalysis,
                     currentSituation: {
                       ...prev.needsAnalysis.currentSituation,
-                      renewalDate: e.target.value
+                      policyStartDate: e.target.value
                     }
                   }
                 }))}
@@ -1612,10 +2680,10 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
             <div className="mt-4 space-y-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <h4 className="text-sm font-medium text-gray-800 mb-3">Claims Details</h4>
               
-              {/* Number of Claims */}
+              {/* Number of Claims in Last 12 Months */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Number of claims made *
+                  How many claims have you had in the last 12 months? *
                 </label>
                 <select
                   value={formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims || ''}
@@ -1639,11 +2707,9 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                   }`}
                 >
                   <option value="">Select number of claims</option>
-                  <option value="1">1 claim</option>
-                  <option value="2">2 claims</option>
-                  <option value="3">3 claims</option>
-                  <option value="4">4 claims</option>
-                  <option value="5">5+ claims</option>
+                  <option value="1">One</option>
+                  <option value="2">Two</option>
+                  <option value="3">More than two</option>
                 </select>
                 {validationErrors['needsAnalysis.currentSituation.claimsHistory.numberOfClaims'] && (
                   <div className="mt-2 flex items-center space-x-2">
@@ -1655,41 +2721,96 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                 )}
               </div>
 
+              {/* Conditional comment field for 2 or more claims */}
+              {formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims && 
+               formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims >= 2 && (
+                <>
+                  <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                    <div className="flex items-start space-x-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h5 className="font-semibold text-red-800 mb-1">Important Notice</h5>
+                        <p className="text-sm text-red-700">
+                          Please note that some insurance companies may refuse to provide a quote due to more than one claim in the last 12 months. 
+                          Please provide details to help us find suitable coverage options.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Please explain what happened and indicate if a third party was involved *
+                    </label>
+                    <textarea
+                      value={formData.needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          currentSituation: {
+                            ...prev.needsAnalysis.currentSituation,
+                            claimsHistory: {
+                              ...prev.needsAnalysis.currentSituation.claimsHistory,
+                              multipleClaimsExplanation: e.target.value
+                            }
+                          }
+                        }
+                      }))}
+                      rows={4}
+                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        validationErrors['needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation'] 
+                          ? 'border-red-300 bg-red-50' 
+                          : 'border-gray-300'
+                      }`}
+                      placeholder="Describe the circumstances of the claims and whether third parties were involved..."
+                    />
+                    {validationErrors['needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation'] && (
+                      <div className="mt-2 flex items-center space-x-2">
+                        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                        <p className="text-sm text-red-600">
+                          {validationErrors['needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation']}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Total Claim Amount */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Total claim amount (approximate) *
+                  <span className="text-xs text-gray-500 block mt-1">Enter the total amount in Rands (R)</span>
                 </label>
-                <select
-                  value={formData.needsAnalysis.currentSituation.claimsHistory.totalClaimAmount || ''}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    needsAnalysis: {
-                      ...prev.needsAnalysis,
-                      currentSituation: {
-                        ...prev.needsAnalysis.currentSituation,
-                        claimsHistory: {
-                          ...prev.needsAnalysis.currentSituation.claimsHistory,
-                          totalClaimAmount: parseInt(e.target.value)
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-gray-500">R</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={formData.needsAnalysis.currentSituation.claimsHistory.totalClaimAmount || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        currentSituation: {
+                          ...prev.needsAnalysis.currentSituation,
+                          claimsHistory: {
+                            ...prev.needsAnalysis.currentSituation.claimsHistory,
+                            totalClaimAmount: e.target.value ? parseFloat(e.target.value) : undefined
+                          }
                         }
                       }
-                    }
-                  }))}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    validationErrors['needsAnalysis.currentSituation.claimsHistory.totalClaimAmount'] 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select claim amount range</option>
-                  <option value="5000">Under R5,000</option>
-                  <option value="15000">R5,000 - R15,000</option>
-                  <option value="30000">R15,000 - R30,000</option>
-                  <option value="50000">R30,000 - R50,000</option>
-                  <option value="100000">R50,000 - R100,000</option>
-                  <option value="200000">R100,000 - R200,000</option>
-                  <option value="500000">Over R200,000</option>
-                </select>
+                    }))}
+                    className={`w-full pl-8 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors['needsAnalysis.currentSituation.claimsHistory.totalClaimAmount'] 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="e.g., 15000"
+                  />
+                </div>
                 {validationErrors['needsAnalysis.currentSituation.claimsHistory.totalClaimAmount'] && (
                   <div className="mt-2 flex items-center space-x-2">
                     <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -1700,13 +2821,13 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                 )}
               </div>
 
-              {/* Current Insurance Status */}
+              {/* Type of Damage */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current insurance status *
+                  Type of Damage *
                 </label>
                 <select
-                  value={formData.needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus || ''}
+                  value={formData.needsAnalysis.currentSituation.claimsHistory.damageType || ''}
                   onChange={(e) => setFormData(prev => ({
                     ...prev,
                     needsAnalysis: {
@@ -1715,30 +2836,111 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                         ...prev.needsAnalysis.currentSituation,
                         claimsHistory: {
                           ...prev.needsAnalysis.currentSituation.claimsHistory,
-                          currentInsuranceStatus: e.target.value
+                          damageType: e.target.value
                         }
                       }
                     }
                   }))}
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    validationErrors['needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus'] 
+                    validationErrors['needsAnalysis.currentSituation.claimsHistory.damageType'] 
                       ? 'border-red-300 bg-red-50' 
                       : 'border-gray-300'
                   }`}
                 >
-                  <option value="">Select current status</option>
-                  <option value="currently-insured">Currently Insured</option>
-                  <option value="insurance-cancelled">Insurance was Cancelled</option>
-                  <option value="insurance-declined">Insurance was Declined</option>
-                  <option value="premium-increased">Premium was Significantly Increased</option>
-                  <option value="looking-to-switch">Looking to Switch Providers</option>
-                  <option value="policy-expired">Policy Expired</option>
+                  <option value="">Select type of damage</option>
+                  <option value="hail">Hail</option>
+                  <option value="windscreen">Windscreen</option>
+                  <option value="accident">Accident</option>
+                  <option value="other">Other</option>
                 </select>
-                {validationErrors['needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus'] && (
+                {validationErrors['needsAnalysis.currentSituation.claimsHistory.damageType'] && (
                   <div className="mt-2 flex items-center space-x-2">
                     <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                     <p className="text-sm text-red-600">
-                      {validationErrors['needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus']}
+                      {validationErrors['needsAnalysis.currentSituation.claimsHistory.damageType']}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Other Damage Type Specification */}
+              {formData.needsAnalysis.currentSituation.claimsHistory.damageType === 'other' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please specify the type of damage *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.needsAnalysis.currentSituation.claimsHistory.damageTypeOther || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        currentSituation: {
+                          ...prev.needsAnalysis.currentSituation,
+                          claimsHistory: {
+                            ...prev.needsAnalysis.currentSituation.claimsHistory,
+                            damageTypeOther: e.target.value
+                          }
+                        }
+                      }
+                    }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors['needsAnalysis.currentSituation.claimsHistory.damageTypeOther'] 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="Please specify the type of damage"
+                  />
+                  {validationErrors['needsAnalysis.currentSituation.claimsHistory.damageTypeOther'] && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                      <p className="text-sm text-red-600">
+                        {validationErrors['needsAnalysis.currentSituation.claimsHistory.damageTypeOther']}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Short Description of Incident */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Short Description of the Incident *
+                  <span className="text-xs text-gray-500 block mt-1">Please describe the incident in 1-2 sentences</span>
+                </label>
+                <textarea
+                  value={formData.needsAnalysis.currentSituation.claimsHistory.incidentDescription || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    needsAnalysis: {
+                      ...prev.needsAnalysis,
+                      currentSituation: {
+                        ...prev.needsAnalysis.currentSituation,
+                        claimsHistory: {
+                          ...prev.needsAnalysis.currentSituation.claimsHistory,
+                          incidentDescription: e.target.value
+                        }
+                      }
+                    }
+                  }))}
+                  rows={3}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['needsAnalysis.currentSituation.claimsHistory.incidentDescription'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Briefly describe what happened..."
+                  maxLength={300}
+                />
+                <div className="text-xs text-gray-500 mt-1 text-right">
+                  {(formData.needsAnalysis.currentSituation.claimsHistory.incidentDescription || '').length}/300 characters
+                </div>
+                {validationErrors['needsAnalysis.currentSituation.claimsHistory.incidentDescription'] && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-600">
+                      {validationErrors['needsAnalysis.currentSituation.claimsHistory.incidentDescription']}
                     </p>
                   </div>
                 )}
@@ -1837,33 +3039,36 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         <div className="bg-blue-50 p-4 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Preferred Excess Amount (Higher excess = Lower premium) *
+            <span className="text-xs text-gray-500 block mt-1">Enter your preferred excess amount in Rands (R)</span>
           </label>
-          <select
-            value={formData.needsAnalysis.coveragePreferences.preferredExcess}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              needsAnalysis: {
-                ...prev.needsAnalysis,
-                coveragePreferences: {
-                  ...prev.needsAnalysis.coveragePreferences,
-                  preferredExcess: e.target.value
+          <div className="relative">
+            <span className="absolute left-3 top-3 text-gray-500">R</span>
+            <input
+              type="number"
+              min="0"
+              step="500"
+              value={formData.needsAnalysis.coveragePreferences.preferredExcess || ''}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                needsAnalysis: {
+                  ...prev.needsAnalysis,
+                  coveragePreferences: {
+                    ...prev.needsAnalysis.coveragePreferences,
+                    preferredExcess: e.target.value
+                  }
                 }
-              }
-            }))}
-            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              validationErrors['needsAnalysis.coveragePreferences.preferredExcess'] 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select preferred excess</option>
-            <option value="R0">R0 (No excess)</option>
-            <option value="R2500">R2,500</option>
-            <option value="R5000">R5,000</option>
-            <option value="R7500">R7,500</option>
-            <option value="R10000">R10,000</option>
-            <option value="R15000">R15,000+</option>
-          </select>
+              }))}
+              className={`w-full pl-8 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                validationErrors['needsAnalysis.coveragePreferences.preferredExcess'] 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300'
+              }`}
+              placeholder="e.g., 5000"
+            />
+          </div>
+          <p className="text-xs text-gray-600 mt-2">
+            💡 Tip: A higher excess typically results in a lower monthly premium
+          </p>
           {validationErrors['needsAnalysis.coveragePreferences.preferredExcess'] && (
             <div className="mt-2 flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -1872,6 +3077,32 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
               </p>
             </div>
           )}
+        </div>
+
+        {/* Additional Cover Requirements */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Do you require any additional cover?
+          </label>
+          <textarea
+            value={formData.needsAnalysis.coveragePreferences.additionalCoverRequirements || ''}
+            onChange={(e) => setFormData(prev => ({
+              ...prev,
+              needsAnalysis: {
+                ...prev.needsAnalysis,
+                coveragePreferences: {
+                  ...prev.needsAnalysis.coveragePreferences,
+                  additionalCoverRequirements: e.target.value
+                }
+              }
+            }))}
+            rows={4}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Please describe any additional cover you need (e.g., windscreen cover, hail damage, theft of contents, roadside assistance, etc.)"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Optional: Specify any specific coverage you'd like to include beyond standard comprehensive insurance
+          </p>
         </div>
       </div>
     </div>
@@ -2010,6 +3241,23 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
               )}
             </div>
           </div>
+
+          {/* M&M Code (optional) */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              M&M Code (Optional)
+            </label>
+            <p className="text-xs text-gray-600 mb-3">
+              You can find the M&M code on your vehicle purchase invoice. This ensures your vehicle is insured at the correct market value.
+            </p>
+            <input
+              type="text"
+              value={formData.insuranceInfo.mmCode || ''}
+              onChange={(e) => updateFormData('insuranceInfo', 'mmCode', e.target.value)}
+              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900"
+              placeholder="Enter M&M code from invoice"
+            />
+          </div>
         </div>
       );
     }
@@ -2133,20 +3381,29 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vehicle Value (Market Value)
+              Vehicle Value (Market Value) *
             </label>
-            <select
-              value={formData.insuranceInfo.vehicleValue || ''}
-              onChange={(e) => updateFormData('insuranceInfo', 'vehicleValue', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Value Range</option>
-              <option value="0-100000">R0 - R100,000</option>
-              <option value="100000-250000">R100,000 - R250,000</option>
-              <option value="250000-500000">R250,000 - R500,000</option>
-              <option value="500000-1000000">R500,000 - R1,000,000</option>
-              <option value="1000000+">R1,000,000+</option>
-            </select>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R</span>
+              <input
+                type="number"
+                value={formData.insuranceInfo.vehicleValue || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'vehicleValue', e.target.value)}
+                className={`w-full p-3 pl-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.vehicleValue'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+                placeholder="Enter vehicle market value"
+                min="0"
+              />
+            </div>
+            {validationErrors['insuranceInfo.vehicleValue'] && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {validationErrors['insuranceInfo.vehicleValue']}
+              </p>
+            )}
           </div>
         </div>
 
@@ -2160,12 +3417,433 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Select Primary Use</option>
-            <option value="personal">Personal Use Only</option>
+            <option value="private-domestic">Private & Domestic Use</option>
             <option value="business">Business Use</option>
-            <option value="rideshare">Rideshare/Uber</option>
-            <option value="delivery">Delivery Services</option>
           </select>
         </div>
+
+        {/* Driver Same as Insured Question */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Is the driver the same person as the insured? *
+          </label>
+          <div className="space-y-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="driverSameAsInsured"
+                value="true"
+                checked={formData.insuranceInfo.driverSameAsInsured === true}
+                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', String(e.target.value === 'true'))}
+                className="mr-2"
+              />
+              <span>Yes, I am the driver</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="driverSameAsInsured"
+                value="false"
+                checked={formData.insuranceInfo.driverSameAsInsured === false}
+                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', String(e.target.value === 'true'))}
+                className="mr-2"
+              />
+              <span>No, someone else will be driving</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Additional Driver Information (shown when driver is different) */}
+        {formData.insuranceInfo.driverSameAsInsured === false && (
+          <div className="bg-orange-50 border border-orange-200 p-6 rounded-lg space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Driver Information</h4>
+            
+            {/* Driver Full Names */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's First Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.insuranceInfo.driverFirstName || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverFirstName', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverFirstName'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Enter driver's first name"
+                />
+                {validationErrors['insuranceInfo.driverFirstName'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverFirstName']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.insuranceInfo.driverLastName || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverLastName', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverLastName'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Enter driver's last name"
+                />
+                {validationErrors['insuranceInfo.driverLastName'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverLastName']}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Driver ID Number and Contact */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's ID Number *
+                </label>
+                <input
+                  type="text"
+                  value={formData.insuranceInfo.driverIdNumber || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverIdNumber', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverIdNumber'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Enter driver's ID number"
+                />
+                {validationErrors['insuranceInfo.driverIdNumber'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverIdNumber']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's Contact Number *
+                </label>
+                <input
+                  type="tel"
+                  value={formData.insuranceInfo.driverContactNumber || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverContactNumber', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverContactNumber'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., 0821234567"
+                />
+                {validationErrors['insuranceInfo.driverContactNumber'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverContactNumber']}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Driver Occupation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Driver's Occupation *
+              </label>
+              <select
+                value={formData.insuranceInfo.driverOccupation || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'driverOccupation', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.driverOccupation'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Occupation</option>
+                <option value="self-employed">Self-Employed</option>
+                <option value="employed">Work for Employer</option>
+                <option value="pensioner">Pensioner</option>
+                <option value="unemployed">Unemployed</option>
+                <option value="student">Student</option>
+              </select>
+              {validationErrors['insuranceInfo.driverOccupation'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.driverOccupation']}
+                </p>
+              )}
+            </div>
+
+            {/* Driver License Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's License Type *
+                </label>
+                <select
+                  value={formData.insuranceInfo.driverLicenseType || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverLicenseType', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverLicenseType'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select License Type</option>
+                  <optgroup label="South African Licenses">
+                    <option value="code-a1">Code A1 (Motorcycles up to 125cc)</option>
+                    <option value="code-a">Code A (Motorcycles)</option>
+                    <option value="code-b">Code B (Light Motor Vehicles)</option>
+                    <option value="code-c1">Code C1 (Light Trucks up to 16,000kg)</option>
+                    <option value="code-c">Code C (Heavy Trucks)</option>
+                    <option value="code-eb">Code EB (Light Vehicle with Trailer)</option>
+                    <option value="code-ec1">Code EC1 (Light Truck with Trailer)</option>
+                    <option value="code-ec">Code EC (Heavy Truck with Trailer)</option>
+                  </optgroup>
+                  <option value="international">International License</option>
+                </select>
+                {validationErrors['insuranceInfo.driverLicenseType'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverLicenseType']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  License Issue Date *
+                </label>
+                <input
+                  type="date"
+                  value={formData.insuranceInfo.driverLicenseIssueDate || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverLicenseIssueDate', e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverLicenseIssueDate'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.driverLicenseIssueDate'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverLicenseIssueDate']}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* International License Upload */}
+            {formData.insuranceInfo.driverLicenseType === 'international' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Please specify country and attach a copy of the license *
+                </label>
+                <input
+                  type="text"
+                  value={formData.insuranceInfo.internationalLicenseCountry || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'internationalLicenseCountry', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 ${
+                    validationErrors['insuranceInfo.internationalLicenseCountry'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Country of license issuance"
+                />
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Handle file upload
+                      updateFormData('insuranceInfo', 'internationalLicenseFile', file.name);
+                    }
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Upload a clear copy of the license (PDF or image)</p>
+                {validationErrors['insuranceInfo.internationalLicenseCountry'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.internationalLicenseCountry']}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Driver Claims History */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Driver's Claims History in Last 12 Months *
+              </label>
+              <select
+                value={formData.insuranceInfo.driverClaimsHistory || ''}
+                onChange={(e) => {
+                  updateFormData('insuranceInfo', 'driverClaimsHistory', e.target.value);
+                  // Clear validation error when user makes a selection
+                  if (e.target.value) {
+                    setValidationErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors['insuranceInfo.driverClaimsHistory'];
+                      return newErrors;
+                    });
+                  }
+                }}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.driverClaimsHistory'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Claims History</option>
+                <option value="none">No Claims</option>
+                <option value="one">One Claim</option>
+                <option value="two">Two Claims</option>
+                <option value="more-than-two">More than Two Claims</option>
+              </select>
+              {validationErrors['insuranceInfo.driverClaimsHistory'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.driverClaimsHistory']}
+                </p>
+              )}
+            </div>
+
+            {/* Number of Claims (shown when more than two claims) */}
+            {formData.insuranceInfo.driverClaimsHistory === 'more-than-two' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  How many claims exactly? *
+                </label>
+                <input
+                  type="number"
+                  min="3"
+                  value={formData.insuranceInfo.driverNumberOfClaims || ''}
+                  onChange={(e) => {
+                    updateFormData('insuranceInfo', 'driverNumberOfClaims', e.target.value);
+                    // Clear validation error when user enters a value
+                    if (e.target.value) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors['insuranceInfo.driverNumberOfClaims'];
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverNumberOfClaims'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Enter number of claims"
+                />
+                {validationErrors['insuranceInfo.driverNumberOfClaims'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverNumberOfClaims']}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Relationship and Marital Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Relationship with the Insured *
+                </label>
+                <select
+                  value={formData.insuranceInfo.driverRelationship || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverRelationship', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverRelationship'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select Relationship</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="child">Child</option>
+                  <option value="parent">Parent</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="family-member">Other Family Member</option>
+                  <option value="friend">Friend</option>
+                  <option value="employee">Employee</option>
+                  <option value="other">Other</option>
+                </select>
+                {validationErrors['insuranceInfo.driverRelationship'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverRelationship']}
+                  </p>
+                )}
+                
+                {/* Conditional input for "Other" relationship */}
+                {formData.insuranceInfo.driverRelationship === 'other' && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Please specify the relationship *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.insuranceInfo.driverRelationshipOther || ''}
+                      onChange={(e) => updateFormData('insuranceInfo', 'driverRelationshipOther', e.target.value)}
+                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        validationErrors['insuranceInfo.driverRelationshipOther'] 
+                          ? 'border-red-300 bg-red-50' 
+                          : 'border-gray-300'
+                      }`}
+                      placeholder="Enter relationship"
+                    />
+                    {validationErrors['insuranceInfo.driverRelationshipOther'] && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {validationErrors['insuranceInfo.driverRelationshipOther']}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Driver's Marital Status *
+                </label>
+                <select
+                  value={formData.insuranceInfo.driverMaritalStatus || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'driverMaritalStatus', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.driverMaritalStatus'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select Marital Status</option>
+                  <option value="single">Single</option>
+                  <option value="married">Married</option>
+                  <option value="divorced">Divorced</option>
+                  <option value="widowed">Widowed</option>
+                  <option value="separated">Separated</option>
+                </select>
+                {validationErrors['insuranceInfo.driverMaritalStatus'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.driverMaritalStatus']}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2440,163 +4118,659 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     <div className="space-y-6">
       <h3 className="text-xl font-bold text-gray-900 mb-4">Property Information</h3>
       
-      <div className="space-y-4">
-        {/* Property Address - for Commercial Property */}
-        {insuranceType === 'commercial-property' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Property Address *
+      <div className="space-y-6">
+        {/* Same as Residential Address Question */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Is the property address the same as your residential address? *
+          </label>
+          <div className="space-y-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="propertySameAsResidential"
+                value="true"
+                checked={formData.insuranceInfo.propertySameAsResidential === true}
+                onChange={(e) => {
+                  const isSame = e.target.value === 'true';
+                  updateFormData('insuranceInfo', 'propertySameAsResidential', String(isSame));
+                  // If same, copy residential address to property address
+                  if (isSame) {
+                    updateFormData('insuranceInfo', 'propertyStreetNumber', formData.personalInfo.streetNumber);
+                    updateFormData('insuranceInfo', 'propertyStreetName', formData.personalInfo.streetName);
+                    updateFormData('insuranceInfo', 'propertySuburb', formData.personalInfo.village);
+                    updateFormData('insuranceInfo', 'propertyCity', formData.personalInfo.village);
+                    updateFormData('insuranceInfo', 'propertyPostalCode', formData.personalInfo.areaCode);
+                    updateFormData('insuranceInfo', 'propertyProvince', formData.personalInfo.province);
+                  }
+                }}
+                className="mr-2"
+              />
+              <span>Yes, same address</span>
             </label>
-            <input
-              type="text"
-              placeholder="Enter full property address"
-              value={formData.insuranceInfo.propertyAddress || ''}
-              onChange={(e) => updateFormData('insuranceInfo', 'propertyAddress', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {getFieldError('propertyAddress') && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {getFieldError('propertyAddress')}
-              </p>
-            )}
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="propertySameAsResidential"
+                value="false"
+                checked={formData.insuranceInfo.propertySameAsResidential === false}
+                onChange={(e) => {
+                  updateFormData('insuranceInfo', 'propertySameAsResidential', String(e.target.value === 'true'));
+                }}
+                className="mr-2"
+              />
+              <span>No, different address</span>
+            </label>
+          </div>
+          {validationErrors['insuranceInfo.propertySameAsResidential'] && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              {validationErrors['insuranceInfo.propertySameAsResidential']}
+            </p>
+          )}
+        </div>
+
+        {/* Physical Address Section - Only show if different address */}
+        {formData.insuranceInfo.propertySameAsResidential === false && (
+          <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+            <h4 className="text-md font-semibold text-gray-900">Property Physical Address *</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Street Number *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., 123"
+                  value={formData.insuranceInfo.propertyStreetNumber || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertyStreetNumber', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertyStreetNumber'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.propertyStreetNumber'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertyStreetNumber']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Street Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Main Road"
+                  value={formData.insuranceInfo.propertyStreetName || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertyStreetName', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertyStreetName'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.propertyStreetName'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertyStreetName']}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Suburb/Village *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Sandton"
+                  value={formData.insuranceInfo.propertySuburb || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertySuburb', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertySuburb'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.propertySuburb'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertySuburb']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  City *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Johannesburg"
+                  value={formData.insuranceInfo.propertyCity || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertyCity', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertyCity'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.propertyCity'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertyCity']}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Postal Code *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., 2196"
+                  maxLength={4}
+                  value={formData.insuranceInfo.propertyPostalCode || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertyPostalCode', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertyPostalCode'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['insuranceInfo.propertyPostalCode'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertyPostalCode']}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Province *
+              </label>
+              <select
+                value={formData.insuranceInfo.propertyProvince || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'propertyProvince', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.propertyProvince'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Province</option>
+                <option value="western-cape">Western Cape</option>
+                <option value="gauteng">Gauteng</option>
+                <option value="kwazulu-natal">KwaZulu-Natal</option>
+                <option value="eastern-cape">Eastern Cape</option>
+                <option value="mpumalanga">Mpumalanga</option>
+                <option value="limpopo">Limpopo</option>
+                <option value="north-west">North West</option>
+                <option value="free-state">Free State</option>
+                <option value="northern-cape">Northern Cape</option>
+              </select>
+              {validationErrors['insuranceInfo.propertyProvince'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.propertyProvince']}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Property Type *
-          </label>
-          <select
-            value={formData.insuranceInfo.propertyType || ''}
-            onChange={(e) => updateFormData('insuranceInfo', 'propertyType', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select Property Type</option>
-            {insuranceType === 'commercial-property' ? (
-              <>
-                <option value="office">Office Building</option>
-                <option value="retail">Retail Space</option>
-                <option value="warehouse">Warehouse</option>
-                <option value="industrial">Industrial Property</option>
-                <option value="mixed-use">Mixed Use</option>
-                <option value="hospitality">Hospitality</option>
-                <option value="medical">Medical/Healthcare</option>
-                <option value="other-commercial">Other Commercial</option>
-              </>
-            ) : (
-              <>
-                <option value="house">House</option>
-                <option value="apartment">Apartment</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="cluster">Cluster Home</option>
-                <option value="estate">Estate Property</option>
-              </>
-            )}
-          </select>
-          {getFieldError('propertyType') && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
-              <AlertCircle className="w-4 h-4 mr-1" />
-              {getFieldError('propertyType')}
-            </p>
-          )}
-        </div>
-
+        {/* Property Type and Value */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Property Value *
+              Building Type *
             </label>
             <select
-              value={formData.insuranceInfo.propertyValue || ''}
-              onChange={(e) => updateFormData('insuranceInfo', 'propertyValue', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.insuranceInfo.propertyType || ''}
+              onChange={(e) => updateFormData('insuranceInfo', 'propertyType', e.target.value)}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                validationErrors['insuranceInfo.propertyType'] 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300'
+              }`}
             >
-              <option value="">Select Value Range</option>
+              <option value="">Select Building Type</option>
               {insuranceType === 'commercial-property' ? (
                 <>
-                  <option value="0-1000000">R0 - R1,000,000</option>
-                  <option value="1000000-2500000">R1,000,000 - R2,500,000</option>
-                  <option value="2500000-5000000">R2,500,000 - R5,000,000</option>
-                  <option value="5000000-10000000">R5,000,000 - R10,000,000</option>
-                  <option value="10000000-25000000">R10,000,000 - R25,000,000</option>
-                  <option value="25000000+">R25,000,000+</option>
+                  <option value="office">Office Building</option>
+                  <option value="retail">Retail Space</option>
+                  <option value="warehouse">Warehouse</option>
+                  <option value="industrial">Industrial Property</option>
+                  <option value="mixed-use">Mixed Use</option>
+                  <option value="hospitality">Hospitality</option>
+                  <option value="medical">Medical/Healthcare</option>
+                  <option value="other-commercial">Other Commercial</option>
+                  <option value="other">Other</option>
                 </>
               ) : (
                 <>
-                  <option value="0-500000">R0 - R500,000</option>
-                  <option value="500000-1000000">R500,000 - R1,000,000</option>
-                  <option value="1000000-2000000">R1,000,000 - R2,000,000</option>
-                  <option value="2000000-5000000">R2,000,000 - R5,000,000</option>
-                  <option value="5000000+">R5,000,000+</option>
+                  <option value="house">House</option>
+                  <option value="apartment">Apartment</option>
+                  <option value="townhouse">Townhouse</option>
+                  <option value="cluster">Cluster Home</option>
+                  <option value="estate">Estate Property</option>
+                  <option value="duplex">Duplex</option>
+                  <option value="flat">Flat</option>
+                  <option value="shack">Shack</option>
+                  <option value="other">Other</option>
                 </>
               )}
             </select>
-            {getFieldError('propertyValue') && (
+            {validationErrors['insuranceInfo.propertyType'] && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
                 <AlertCircle className="w-4 h-4 mr-1" />
-                {getFieldError('propertyValue')}
+                {validationErrors['insuranceInfo.propertyType']}
+              </p>
+            )}
+            
+            {/* Conditional input for "Other" building type */}
+            {formData.insuranceInfo.propertyType === 'other' && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Please describe the building type *
+                </label>
+                <textarea
+                  value={formData.insuranceInfo.propertyTypeOther || ''}
+                  onChange={(e) => updateFormData('insuranceInfo', 'propertyTypeOther', e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['insuranceInfo.propertyTypeOther'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Describe the building type..."
+                  rows={3}
+                />
+                {validationErrors['insuranceInfo.propertyTypeOther'] && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors['insuranceInfo.propertyTypeOther']}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Property Value (Building) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R</span>
+              <input
+                type="number"
+                placeholder="Enter property value"
+                value={formData.insuranceInfo.propertyValue || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'propertyValue', e.target.value)}
+                className={`w-full p-3 pl-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.propertyValue'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+                min="0"
+              />
+            </div>
+            {validationErrors['insuranceInfo.propertyValue'] && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {validationErrors['insuranceInfo.propertyValue']}
               </p>
             )}
           </div>
+        </div>
+
+        {/* Building Construction Details */}
+        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+          <h4 className="text-md font-semibold text-gray-900">Building Construction Details</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Wall Construction Material *
+              </label>
+              <select
+                value={formData.insuranceInfo.wallMaterial || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'wallMaterial', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.wallMaterial'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Wall Material</option>
+                <option value="brick">Brick</option>
+                <option value="concrete">Concrete</option>
+                <option value="stone">Stone</option>
+                <option value="wood">Wood/Timber</option>
+                <option value="metal">Metal/Steel</option>
+                <option value="prefab">Pre-fabricated</option>
+                <option value="mixed">Mixed Materials</option>
+                <option value="other">Other</option>
+              </select>
+              {validationErrors['insuranceInfo.wallMaterial'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.wallMaterial']}
+                </p>
+              )}
+              
+              {/* Conditional input for "Other" wall material */}
+              {formData.insuranceInfo.wallMaterial === 'other' && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please specify the wall material *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.insuranceInfo.wallMaterialOther || ''}
+                    onChange={(e) => updateFormData('insuranceInfo', 'wallMaterialOther', e.target.value)}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors['insuranceInfo.wallMaterialOther'] 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="Specify wall material..."
+                  />
+                  {validationErrors['insuranceInfo.wallMaterialOther'] && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors['insuranceInfo.wallMaterialOther']}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Roof Material *
+              </label>
+              <select
+                value={formData.insuranceInfo.roofMaterial || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'roofMaterial', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.roofMaterial'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Roof Material</option>
+                <option value="tiles">Tiles (Clay/Concrete)</option>
+                <option value="slate">Slate</option>
+                <option value="metal-sheets">Metal Sheets/Corrugated Iron</option>
+                <option value="thatch">Thatch</option>
+                <option value="asbestos">Asbestos</option>
+                <option value="flat-concrete">Flat Concrete</option>
+                <option value="shingles">Shingles</option>
+                <option value="other">Other</option>
+              </select>
+              {validationErrors['insuranceInfo.roofMaterial'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.roofMaterial']}
+                </p>
+              )}
+              
+              {/* Conditional input for "Other" roof material */}
+              {formData.insuranceInfo.roofMaterial === 'other' && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please specify the roof material *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.insuranceInfo.roofMaterialOther || ''}
+                    onChange={(e) => updateFormData('insuranceInfo', 'roofMaterialOther', e.target.value)}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors['insuranceInfo.roofMaterialOther'] 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="Specify roof material..."
+                  />
+                  {validationErrors['insuranceInfo.roofMaterialOther'] && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors['insuranceInfo.roofMaterialOther']}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Year Built/Age of Building *
+              </label>
+              <input
+                type="number"
+                placeholder="e.g., 2010"
+                min="1800"
+                max={new Date().getFullYear()}
+                value={formData.insuranceInfo.yearBuilt || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'yearBuilt', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.yearBuilt'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              />
+              {validationErrors['insuranceInfo.yearBuilt'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.yearBuilt']}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Storeys/Floors *
+              </label>
+              <select
+                value={formData.insuranceInfo.numberOfStoreys || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'numberOfStoreys', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.numberOfStoreys'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select Number of Storeys</option>
+                <option value="1">Single Storey (1 Floor)</option>
+                <option value="2">Two Storeys (2 Floors)</option>
+                <option value="3">Three Storeys (3 Floors)</option>
+                <option value="4">Four Storeys (4 Floors)</option>
+                <option value="5+">Five or More Storeys (5+ Floors)</option>
+              </select>
+              {validationErrors['insuranceInfo.numberOfStoreys'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.numberOfStoreys']}
+                </p>
+              )}
+              
+              {/* Conditional input for "5+" storeys */}
+              {formData.insuranceInfo.numberOfStoreys === '5+' && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please specify the exact number of storeys/floors *
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    value={formData.insuranceInfo.numberOfStoreysExact || ''}
+                    onChange={(e) => updateFormData('insuranceInfo', 'numberOfStoreysExact', e.target.value)}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors['insuranceInfo.numberOfStoreysExact'] 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="Enter exact number of storeys..."
+                  />
+                  {validationErrors['insuranceInfo.numberOfStoreysExact'] && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors['insuranceInfo.numberOfStoreysExact']}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {insuranceType === 'commercial-property' ? 'Equipment/Stock Value' : 'Contents Value'}
+              Total Floor Area (Square Meters) *
             </label>
-            <select
-              value={formData.insuranceInfo.contentsValue || ''}
-              onChange={(e) => updateFormData('insuranceInfo', 'contentsValue', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select {insuranceType === 'commercial-property' ? 'Equipment/Stock' : 'Contents'} Value</option>
-              {insuranceType === 'commercial-property' ? (
-                <>
-                  <option value="0-250000">R0 - R250,000</option>
-                  <option value="250000-500000">R250,000 - R500,000</option>
-                  <option value="500000-1000000">R500,000 - R1,000,000</option>
-                  <option value="1000000-2500000">R1,000,000 - R2,500,000</option>
-                  <option value="2500000-5000000">R2,500,000 - R5,000,000</option>
-                  <option value="5000000+">R5,000,000+</option>
-                </>
-              ) : (
-                <>
-                  <option value="0-100000">R0 - R100,000</option>
-                  <option value="100000-250000">R100,000 - R250,000</option>
-                  <option value="250000-500000">R250,000 - R500,000</option>
-                  <option value="500000-1000000">R500,000 - R1,000,000</option>
-                  <option value="1000000+">R1,000,000+</option>
-                </>
-              )}
-            </select>
+            <input
+              type="number"
+              placeholder="e.g., 150"
+              min="1"
+              value={formData.insuranceInfo.floorArea || ''}
+              onChange={(e) => updateFormData('insuranceInfo', 'floorArea', e.target.value)}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                validationErrors['insuranceInfo.floorArea'] 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300'
+              }`}
+            />
+            {validationErrors['insuranceInfo.floorArea'] && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {validationErrors['insuranceInfo.floorArea']}
+              </p>
+            )}
           </div>
         </div>
 
+        {/* Building Usage */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Property Location (Province) *
+            Primary Use of Building *
           </label>
           <select
-            value={formData.insuranceInfo.propertyProvince || ''}
-            onChange={(e) => updateFormData('insuranceInfo', 'propertyProvince', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={formData.insuranceInfo.buildingUse || ''}
+            onChange={(e) => updateFormData('insuranceInfo', 'buildingUse', e.target.value)}
+            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              validationErrors['insuranceInfo.buildingUse'] 
+                ? 'border-red-300 bg-red-50' 
+                : 'border-gray-300'
+            }`}
           >
-            <option value="">Select Province</option>
-            <option value="western-cape">Western Cape</option>
-            <option value="gauteng">Gauteng</option>
-            <option value="kwazulu-natal">KwaZulu-Natal</option>
-            <option value="eastern-cape">Eastern Cape</option>
-            <option value="mpumalanga">Mpumalanga</option>
-            <option value="limpopo">Limpopo</option>
-            <option value="north-west">North West</option>
-            <option value="free-state">Free State</option>
-            <option value="northern-cape">Northern Cape</option>
+            <option value="">Select Building Use</option>
+            <option value="residential-owner">Residential - Owner Occupied</option>
+            <option value="residential-rented">Residential - Rented Out</option>
+            <option value="commercial">Commercial/Business</option>
+            <option value="mixed">Mixed Use (Residential & Commercial)</option>
+            <option value="vacant">Vacant/Unoccupied</option>
           </select>
-          {getFieldError('propertyProvince') && (
+          {validationErrors['insuranceInfo.buildingUse'] && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" />
-              {getFieldError('propertyProvince')}
+              {validationErrors['insuranceInfo.buildingUse']}
             </p>
           )}
+        </div>
+
+        {/* Commercial Use Details */}
+        {(formData.insuranceInfo.buildingUse === 'commercial' || formData.insuranceInfo.buildingUse === 'mixed') && (
+          <div className="bg-yellow-50 p-4 rounded-lg space-y-4">
+            <h4 className="text-md font-semibold text-gray-900">Commercial Use Details</h4>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type of Business Conducted *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Retail shop, Restaurant, Office"
+                value={formData.insuranceInfo.businessType || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'businessType', e.target.value)}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors['insuranceInfo.businessType'] 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+              />
+              {validationErrors['insuranceInfo.businessType'] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors['insuranceInfo.businessType']}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Employees on Premises
+              </label>
+              <input
+                type="number"
+                placeholder="e.g., 10"
+                min="0"
+                value={formData.insuranceInfo.numberOfEmployees || ''}
+                onChange={(e) => updateFormData('insuranceInfo', 'numberOfEmployees', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Building Condition and Features */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Overall Building Condition *
+            </label>
+            <select
+              value={formData.insuranceInfo.buildingCondition || ''}
+              onChange={(e) => updateFormData('insuranceInfo', 'buildingCondition', e.target.value)}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                validationErrors['insuranceInfo.buildingCondition'] 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select Condition</option>
+              <option value="excellent">Excellent - Like New</option>
+              <option value="good">Good - Well Maintained</option>
+              <option value="fair">Fair - Some Wear and Tear</option>
+              <option value="poor">Poor - Requires Repairs</option>
+            </select>
+            {validationErrors['insuranceInfo.buildingCondition'] && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {validationErrors['insuranceInfo.buildingCondition']}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Building Features or Information
+            </label>
+            <textarea
+              rows={4}
+              placeholder="Please provide any additional information about the building (e.g., renovations, special features, annexes, outbuildings, swimming pool, etc.)"
+              value={formData.insuranceInfo.additionalBuildingInfo || ''}
+              onChange={(e) => updateFormData('insuranceInfo', 'additionalBuildingInfo', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -7032,6 +9206,983 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                 </div>
               </div>
             )}
+
+            {/* Security Gates/Burglar Bars Details */}
+            {formData.needsAnalysis.riskFactors.securityFeatures?.includes('Security gates/burglar bars') && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Security Gates/Burglar Bars Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Type of Security Barriers *
+                    </label>
+                    <div className="space-y-2">
+                      {['Security gates', 'Burglar bars', 'Security doors', 'Window grilles', 'Trellis doors'].map((type) => (
+                        <label key={type} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            value={type}
+                            checked={formData.needsAnalysis.riskFactors.securityBarrierTypes?.includes(type) || false}
+                            onChange={(e) => {
+                              const types = formData.needsAnalysis.riskFactors.securityBarrierTypes || [];
+                              const updatedTypes = e.target.checked
+                                ? [...types, type]
+                                : types.filter((t: string) => t !== type);
+                              
+                              setFormData(prev => ({
+                                ...prev,
+                                needsAnalysis: {
+                                  ...prev.needsAnalysis,
+                                  riskFactors: {
+                                    ...prev.needsAnalysis.riskFactors,
+                                    securityBarrierTypes: updatedTypes
+                                  }
+                                }
+                              }))
+                            }}
+                            className="mr-2"
+                          />
+                          <span>{type}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {getFieldError('securityBarrierTypes') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityBarrierTypes')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Material *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityBarrierMaterial || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityBarrierMaterial: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select material</option>
+                      <option value="steel">Steel</option>
+                      <option value="wrought-iron">Wrought Iron</option>
+                      <option value="aluminum">Aluminum</option>
+                      <option value="security-mesh">Security Mesh</option>
+                      <option value="reinforced-steel">Reinforced Steel</option>
+                      <option value="mixed">Mixed Materials</option>
+                    </select>
+                    {getFieldError('securityBarrierMaterial') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityBarrierMaterial')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Coverage *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityBarrierCoverage || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityBarrierCoverage: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select coverage</option>
+                      <option value="all-windows-doors">All Windows and Doors</option>
+                      <option value="ground-floor-only">Ground Floor Only</option>
+                      <option value="main-entrance-only">Main Entrance Only</option>
+                      <option value="partial">Partial Coverage</option>
+                      <option value="all-entry-points">All Entry Points</option>
+                    </select>
+                    {getFieldError('securityBarrierCoverage') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityBarrierCoverage')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Installation Date
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.needsAnalysis.riskFactors.securityBarrierInstallDate || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityBarrierInstallDate: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Armed Response Details */}
+            {formData.needsAnalysis.riskFactors.securityFeatures?.includes('Armed response') && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Armed Response Service Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Provider *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., ADT, Fidelity, Chubb, Blue Security"
+                      value={formData.needsAnalysis.riskFactors.armedResponseProvider || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            armedResponseProvider: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    {getFieldError('armedResponseProvider') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('armedResponseProvider')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Level *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.armedResponseLevel || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            armedResponseLevel: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select service level</option>
+                      <option value="24-7-armed">24/7 Armed Response</option>
+                      <option value="alarm-linked">Alarm-Linked Response</option>
+                      <option value="panic-button">Panic Button Response</option>
+                      <option value="patrol-service">Regular Patrol Service</option>
+                      <option value="basic">Basic Armed Response</option>
+                      <option value="premium">Premium Service Package</option>
+                    </select>
+                    {getFieldError('armedResponseLevel') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('armedResponseLevel')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Average Response Time *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.armedResponseTime || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            armedResponseTime: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select response time</option>
+                      <option value="0-3">0-3 minutes</option>
+                      <option value="4-6">4-6 minutes</option>
+                      <option value="7-10">7-10 minutes</option>
+                      <option value="11-15">11-15 minutes</option>
+                      <option value="15+">More than 15 minutes</option>
+                    </select>
+                    {getFieldError('armedResponseTime') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('armedResponseTime')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contract Start Date
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.needsAnalysis.riskFactors.armedResponseContractDate || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            armedResponseContractDate: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Number of Armed Response Officers per Call-out
+                  </label>
+                  <select
+                    value={formData.needsAnalysis.riskFactors.armedResponseOfficers || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        riskFactors: {
+                          ...prev.needsAnalysis.riskFactors,
+                          armedResponseOfficers: e.target.value
+                        }
+                      }
+                    }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select number</option>
+                    <option value="1">1 Officer</option>
+                    <option value="2">2 Officers</option>
+                    <option value="3+">3 or More Officers</option>
+                    <option value="varies">Varies by Situation</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Electric Fencing Details */}
+            {formData.needsAnalysis.riskFactors.securityFeatures?.includes('Electric fencing') && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Electric Fencing Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fence Type *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.electricFenceType || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceType: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select fence type</option>
+                      <option value="standard-electric">Standard Electric Fence</option>
+                      <option value="energized-wall">Energized Wall-Top</option>
+                      <option value="razor-wire-electric">Razor Wire with Electric</option>
+                      <option value="monitored-electric">Monitored Electric Fence</option>
+                      <option value="smart-fence">Smart Electric Fence System</option>
+                    </select>
+                    {getFieldError('electricFenceType') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('electricFenceType')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Voltage Level *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.electricFenceVoltage || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceVoltage: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select voltage</option>
+                      <option value="5000-7000">5,000-7,000 volts (Standard)</option>
+                      <option value="7000-9000">7,000-9,000 volts (High)</option>
+                      <option value="9000+">9,000+ volts (Very High)</option>
+                      <option value="adjustable">Adjustable Voltage</option>
+                    </select>
+                    {getFieldError('electricFenceVoltage') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('electricFenceVoltage')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Perimeter Coverage *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.electricFenceCoverage || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceCoverage: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select coverage</option>
+                      <option value="full-perimeter">Full Perimeter</option>
+                      <option value="front-back">Front and Back Only</option>
+                      <option value="boundary-walls">Boundary Walls Only</option>
+                      <option value="partial">Partial Coverage</option>
+                      <option value="strategic-points">Strategic Points Only</option>
+                    </select>
+                    {getFieldError('electricFenceCoverage') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('electricFenceCoverage')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Alarm Integration *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.electricFenceAlarmIntegration || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceAlarmIntegration: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select integration</option>
+                      <option value="fully-integrated">Fully Integrated with Alarm System</option>
+                      <option value="standalone">Standalone System</option>
+                      <option value="monitoring-company">Linked to Monitoring Company</option>
+                      <option value="sms-alerts">SMS/App Alerts Only</option>
+                      <option value="no-alarm">No Alarm Integration</option>
+                    </select>
+                    {getFieldError('electricFenceAlarmIntegration') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('electricFenceAlarmIntegration')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Installation Company
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Stafix, Nemtek, Gallagher"
+                      value={formData.needsAnalysis.riskFactors.electricFenceInstaller || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceInstaller: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Installation Date
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.needsAnalysis.riskFactors.electricFenceInstallDate || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceInstallDate: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.needsAnalysis.riskFactors.electricFenceBackupPower || false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            electricFenceBackupPower: e.target.checked
+                          }
+                        }
+                      }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Has Backup Power Supply/Battery</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Security Guards Details */}
+            {formData.needsAnalysis.riskFactors.securityFeatures?.includes('Security guards') && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Security Guards Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Guard Service Provider *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Fidelity, G4S, Stallion Security"
+                      value={formData.needsAnalysis.riskFactors.securityGuardProvider || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardProvider: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    {getFieldError('securityGuardProvider') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityGuardProvider')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Number of Guards on Duty *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityGuardCount || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardCount: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select number</option>
+                      <option value="1">1 Guard</option>
+                      <option value="2">2 Guards</option>
+                      <option value="3-5">3-5 Guards</option>
+                      <option value="6-10">6-10 Guards</option>
+                      <option value="10+">More than 10 Guards</option>
+                    </select>
+                    {getFieldError('securityGuardCount') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityGuardCount')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Guard Type *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityGuardType || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardType: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select guard type</option>
+                      <option value="armed">Armed Guards</option>
+                      <option value="unarmed">Unarmed Guards</option>
+                      <option value="mixed">Mix of Armed & Unarmed</option>
+                    </select>
+                    {getFieldError('securityGuardType') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityGuardType')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Coverage Hours *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityGuardHours || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardHours: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select coverage</option>
+                      <option value="24-7">24/7 Coverage</option>
+                      <option value="nighttime">Nighttime Only (6PM-6AM)</option>
+                      <option value="daytime">Daytime Only (6AM-6PM)</option>
+                      <option value="business-hours">Business Hours Only</option>
+                      <option value="weekends">Weekends Only</option>
+                      <option value="custom">Custom Schedule</option>
+                    </select>
+                    {getFieldError('securityGuardHours') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('securityGuardHours')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Guard Station Location
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.securityGuardLocation || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardLocation: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select location</option>
+                      <option value="main-entrance">Main Entrance</option>
+                      <option value="multiple-points">Multiple Entry Points</option>
+                      <option value="roving-patrol">Roving Patrol</option>
+                      <option value="guardhouse">Guardhouse/Security Post</option>
+                      <option value="perimeter">Perimeter Patrol</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contract Start Date
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.needsAnalysis.riskFactors.securityGuardContractDate || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardContractDate: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.needsAnalysis.riskFactors.securityGuardTraining || false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            securityGuardTraining: e.target.checked
+                          }
+                        }
+                      }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Guards Have PSIRA Registration & Training</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* CCTV Cameras Details */}
+            {formData.needsAnalysis.riskFactors.securityFeatures?.includes('CCTV cameras') && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">CCTV Camera System Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Number of Cameras *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.cctvCameraCount || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvCameraCount: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select number</option>
+                      <option value="1-2">1-2 Cameras</option>
+                      <option value="3-5">3-5 Cameras</option>
+                      <option value="6-10">6-10 Cameras</option>
+                      <option value="11-20">11-20 Cameras</option>
+                      <option value="20+">More than 20 Cameras</option>
+                    </select>
+                    {getFieldError('cctvCameraCount') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('cctvCameraCount')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Camera Type *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.cctvCameraType || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvCameraType: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select camera type</option>
+                      <option value="analog">Analog Cameras</option>
+                      <option value="ip-cameras">IP/Network Cameras</option>
+                      <option value="hd-cameras">HD/4K Cameras</option>
+                      <option value="ptz-cameras">PTZ (Pan-Tilt-Zoom) Cameras</option>
+                      <option value="smart-cameras">Smart/AI Cameras</option>
+                      <option value="mixed">Mixed Camera Types</option>
+                    </select>
+                    {getFieldError('cctvCameraType') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('cctvCameraType')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Recording System *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.cctvRecordingSystem || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvRecordingSystem: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select recording system</option>
+                      <option value="dvr">DVR (Digital Video Recorder)</option>
+                      <option value="nvr">NVR (Network Video Recorder)</option>
+                      <option value="cloud-storage">Cloud Storage</option>
+                      <option value="hybrid">Hybrid (Local + Cloud)</option>
+                      <option value="no-recording">Live View Only (No Recording)</option>
+                    </select>
+                    {getFieldError('cctvRecordingSystem') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('cctvRecordingSystem')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Storage Capacity *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.cctvStorageCapacity || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvStorageCapacity: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select storage duration</option>
+                      <option value="7-days">7 Days</option>
+                      <option value="14-days">14 Days</option>
+                      <option value="30-days">30 Days</option>
+                      <option value="60-days">60 Days</option>
+                      <option value="90-days">90+ Days</option>
+                    </select>
+                    {getFieldError('cctvStorageCapacity') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('cctvStorageCapacity')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Camera Coverage *
+                    </label>
+                    <select
+                      value={formData.needsAnalysis.riskFactors.cctvCoverage || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvCoverage: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select coverage</option>
+                      <option value="full-perimeter">Full Perimeter Coverage</option>
+                      <option value="entry-exit">Entry/Exit Points Only</option>
+                      <option value="high-risk-areas">High-Risk Areas Only</option>
+                      <option value="interior-exterior">Interior & Exterior</option>
+                      <option value="partial">Partial Coverage</option>
+                    </select>
+                    {getFieldError('cctvCoverage') && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {getFieldError('cctvCoverage')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Installation Date
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.needsAnalysis.riskFactors.cctvInstallDate || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvInstallDate: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Camera Features
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      'Night vision',
+                      'Motion detection',
+                      'Audio recording',
+                      'Remote viewing',
+                      'Mobile app access',
+                      'Facial recognition',
+                      'License plate recognition',
+                      'Two-way audio',
+                      'Weather resistant'
+                    ].map((feature) => (
+                      <label key={feature} className="flex items-center text-sm">
+                        <input
+                          type="checkbox"
+                          value={feature}
+                          checked={formData.needsAnalysis.riskFactors.cctvFeatures?.includes(feature) || false}
+                          onChange={(e) => {
+                            const features = formData.needsAnalysis.riskFactors.cctvFeatures || [];
+                            const updatedFeatures = e.target.checked
+                              ? [...features, feature]
+                              : features.filter((f: string) => f !== feature);
+                            
+                            setFormData(prev => ({
+                              ...prev,
+                              needsAnalysis: {
+                                ...prev.needsAnalysis,
+                                riskFactors: {
+                                  ...prev.needsAnalysis.riskFactors,
+                                  cctvFeatures: updatedFeatures
+                                }
+                              }
+                            }))
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                        />
+                        <span className="text-gray-700">{feature}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.needsAnalysis.riskFactors.cctvMonitored || false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        needsAnalysis: {
+                          ...prev.needsAnalysis,
+                          riskFactors: {
+                            ...prev.needsAnalysis.riskFactors,
+                            cctvMonitored: e.target.checked
+                          }
+                        }
+                      }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">System is Professionally Monitored</span>
+                  </label>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -8750,8 +11901,73 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
             <div><strong>Email:</strong> {formData.personalInfo.email}</div>
             <div><strong>Phone:</strong> {formData.personalInfo.phone}</div>
             <div><strong>ID Number:</strong> {formData.personalInfo.idNumber}</div>
-            <div><strong>City:</strong> {formData.personalInfo.city}</div>
+            <div><strong>Marital Status:</strong> {formData.personalInfo.maritalStatus.charAt(0).toUpperCase() + formData.personalInfo.maritalStatus.slice(1)}</div>
+            <div><strong>Occupation:</strong> {
+              formData.personalInfo.occupation === 'self-employed' ? 'Self-Employed' :
+              formData.personalInfo.occupation === 'employed' ? 'Work for an Employer' :
+              formData.personalInfo.occupation === 'pensioner' ? 'Pensioner' :
+              formData.personalInfo.occupation === 'unemployed' ? 'Unemployed' :
+              formData.personalInfo.occupation
+            }</div>
           </div>
+          
+          {/* Physical Address */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h5 className="font-semibold text-gray-900 mb-2">Physical Address</h5>
+            <div className="text-sm text-gray-700">
+              {formData.personalInfo.streetNumber} {formData.personalInfo.streetName}, {formData.personalInfo.village}, {formData.personalInfo.areaCode}
+              <br />
+              {formData.personalInfo.province.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}, {
+                formData.personalInfo.country === 'other' && formData.personalInfo.countryOther
+                  ? formData.personalInfo.countryOther
+                  : formData.personalInfo.country.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+              }
+            </div>
+          </div>
+
+          {/* Co-Insured Information */}
+          {formData.coInsured?.hasCoInsured && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h5 className="font-semibold text-gray-900 mb-2">Co-Insured Information</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div><strong>Name:</strong> {formData.coInsured.firstName} {formData.coInsured.lastName}</div>
+                <div><strong>Email:</strong> {formData.coInsured.email}</div>
+                <div><strong>Phone:</strong> {formData.coInsured.phone}</div>
+                <div><strong>ID Number:</strong> {formData.coInsured.idNumber}</div>
+                <div><strong>Relationship:</strong> {
+                  formData.coInsured.relationship === 'spouse' ? 'Spouse' :
+                  formData.coInsured.relationship === 'partner' ? 'Partner' :
+                  formData.coInsured.relationship === 'parent' ? 'Parent' :
+                  formData.coInsured.relationship === 'child' ? 'Child' :
+                  formData.coInsured.relationship === 'sibling' ? 'Sibling' :
+                  formData.coInsured.relationship === 'other-family' ? 'Other Family Member' :
+                  formData.coInsured.relationship === 'business-partner' ? 'Business Partner' :
+                  formData.coInsured.relationship === 'other' && formData.coInsured.relationshipOther ? formData.coInsured.relationshipOther :
+                  formData.coInsured.relationship === 'other' ? 'Other' :
+                  formData.coInsured.relationship
+                }</div>
+              </div>
+              {!formData.coInsured.sameAddress && (
+                <div className="mt-2">
+                  <strong className="text-sm">Address:</strong>
+                  <div className="text-sm text-gray-700">
+                    {formData.coInsured.streetNumber} {formData.coInsured.streetName}, {formData.coInsured.village}, {formData.coInsured.areaCode}
+                    <br />
+                    {formData.coInsured.province?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}, {
+                      formData.coInsured.country === 'other' && formData.coInsured.countryOther
+                        ? formData.coInsured.countryOther
+                        : formData.coInsured.country?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                    }
+                  </div>
+                </div>
+              )}
+              {formData.coInsured.sameAddress && (
+                <div className="mt-2 text-sm text-gray-600">
+                  <em>Same address as client</em>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Current Situation Review */}
@@ -8767,12 +11983,32 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           </div>
           <div className="space-y-2 text-sm">
             <div><strong>Existing Insurance:</strong> {formData.needsAnalysis.currentSituation.hasExistingInsurance ? 'Yes' : 'No'}</div>
+            {formData.needsAnalysis.currentSituation.hasExistingInsurance && formData.needsAnalysis.currentSituation.policyStartDate && (
+              <div className="ml-4 text-gray-600">Policy Started: {new Date(formData.needsAnalysis.currentSituation.policyStartDate).toLocaleDateString()}</div>
+            )}
             <div><strong>Claims History:</strong> {formData.needsAnalysis.currentSituation.claimsHistory.hasClaimsLastThreeYears ? 'Yes' : 'No claims in last 3 years'}</div>
             {formData.needsAnalysis.currentSituation.claimsHistory.hasClaimsLastThreeYears && (
               <div className="ml-4 space-y-1 text-gray-600">
-                <div>• Number of claims: {formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims}</div>
+                <div>• Number of claims in last 12 months: {
+                  formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims === 1 ? 'One' :
+                  formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims === 2 ? 'Two' :
+                  formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims === 3 ? 'More than two' :
+                  formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims
+                }</div>
                 <div>• Total claim amount: R{formData.needsAnalysis.currentSituation.claimsHistory.totalClaimAmount?.toLocaleString()}</div>
-                <div>• Current status: {formData.needsAnalysis.currentSituation.claimsHistory.currentInsuranceStatus?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                <div>• Type of damage: {
+                  formData.needsAnalysis.currentSituation.claimsHistory.damageType === 'other' && formData.needsAnalysis.currentSituation.claimsHistory.damageTypeOther
+                    ? formData.needsAnalysis.currentSituation.claimsHistory.damageTypeOther
+                    : formData.needsAnalysis.currentSituation.claimsHistory.damageType?.replace(/\b\w/g, l => l.toUpperCase())
+                }</div>
+                {formData.needsAnalysis.currentSituation.claimsHistory.incidentDescription && (
+                  <div>• Incident description: {formData.needsAnalysis.currentSituation.claimsHistory.incidentDescription}</div>
+                )}
+                {formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims && 
+                 formData.needsAnalysis.currentSituation.claimsHistory.numberOfClaims >= 2 &&
+                 formData.needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation && (
+                  <div>• Multiple claims explanation: {formData.needsAnalysis.currentSituation.claimsHistory.multipleClaimsExplanation}</div>
+                )}
               </div>
             )}
           </div>
@@ -8791,8 +12027,11 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           </div>
           <div className="space-y-2 text-sm">
             <div><strong>Coverage Level:</strong> {formData.needsAnalysis.coveragePreferences.coverageLevel}</div>
-            <div><strong>Preferred Excess:</strong> {formData.needsAnalysis.coveragePreferences.preferredExcess || 'Not specified'}</div>
+            <div><strong>Preferred Excess:</strong> R{formData.needsAnalysis.coveragePreferences.preferredExcess ? parseFloat(formData.needsAnalysis.coveragePreferences.preferredExcess).toLocaleString() : '0'}</div>
             <div><strong>Additional Coverage:</strong> {formData.needsAnalysis.coveragePreferences.additionalCoverage.length > 0 ? formData.needsAnalysis.coveragePreferences.additionalCoverage.join(', ') : 'None selected'}</div>
+            {formData.needsAnalysis.coveragePreferences.additionalCoverRequirements && (
+              <div><strong>Additional Cover Requirements:</strong> {formData.needsAnalysis.coveragePreferences.additionalCoverRequirements}</div>
+            )}
           </div>
         </div>
 
@@ -8813,6 +12052,90 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
               <div><strong>Licence First Issued:</strong> {formData.needsAnalysis.driverDetails.licenceFirstIssued} years ago</div>
               <div><strong>Years Since Last Claim:</strong> {formData.needsAnalysis.driverDetails.yearsSinceLastClaim === 'never' ? 'Never had a claim' : formData.needsAnalysis.driverDetails.yearsSinceLastClaim}</div>
               <div><strong>Drivers Under 25:</strong> {formData.needsAnalysis.driverDetails.driversUnder25 ? 'Yes' : 'No'}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Vehicle Details Review (for Auto Insurance) */}
+        {insuranceType === 'auto' && (
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-lg font-semibold text-gray-900">Vehicle Details</h4>
+              <button
+                onClick={() => handleEditStep('vehicle-details')}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              >
+                Edit
+              </button>
+            </div>
+            <div className="space-y-2 text-sm">
+              {formData.insuranceInfo.vehicleMake && (
+                <div><strong>Vehicle Make:</strong> {formData.insuranceInfo.vehicleMake}</div>
+              )}
+              {formData.insuranceInfo.vehicleModel && (
+                <div><strong>Vehicle Model:</strong> {formData.insuranceInfo.vehicleModel}</div>
+              )}
+              {formData.insuranceInfo.vehicleYear && (
+                <div><strong>Year of Manufacture:</strong> {formData.insuranceInfo.vehicleYear}</div>
+              )}
+              {formData.insuranceInfo.vehicleValue && (
+                <div><strong>Vehicle Value:</strong> R{formData.insuranceInfo.vehicleValue.replace(/-/g, ' - R')}</div>
+              )}
+              {formData.insuranceInfo.mmCode && (
+                <div><strong>M&M Code:</strong> {formData.insuranceInfo.mmCode}</div>
+              )}
+              {formData.insuranceInfo.vehicleUsage && (
+                <div><strong>Primary Use:</strong> {
+                  formData.insuranceInfo.vehicleUsage === 'private-domestic' ? 'Private & Domestic Use' :
+                  formData.insuranceInfo.vehicleUsage === 'business' ? 'Business Use' :
+                  formData.insuranceInfo.vehicleUsage
+                }</div>
+              )}
+              <div><strong>Driver Same as Insured:</strong> {
+                formData.insuranceInfo.driverSameAsInsured === true ? 'Yes' :
+                formData.insuranceInfo.driverSameAsInsured === false ? 'No' :
+                'Not specified'
+              }</div>
+              
+              {/* Additional Driver Details */}
+              {formData.insuranceInfo.driverSameAsInsured === false && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h5 className="font-semibold text-gray-900 mb-2">Driver Information</h5>
+                  <div className="space-y-1 ml-4 text-gray-600">
+                    {formData.insuranceInfo.driverFirstName && formData.insuranceInfo.driverLastName && (
+                      <div>• Full Name: {formData.insuranceInfo.driverFirstName} {formData.insuranceInfo.driverLastName}</div>
+                    )}
+                    {formData.insuranceInfo.driverIdNumber && (
+                      <div>• ID Number: {formData.insuranceInfo.driverIdNumber}</div>
+                    )}
+                    {formData.insuranceInfo.driverContactNumber && (
+                      <div>• Contact: {formData.insuranceInfo.driverContactNumber}</div>
+                    )}
+                    {formData.insuranceInfo.driverOccupation && (
+                      <div>• Occupation: {formData.insuranceInfo.driverOccupation.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</div>
+                    )}
+                    {formData.insuranceInfo.driverLicenseType && (
+                      <div>• License Type: {
+                        formData.insuranceInfo.driverLicenseType === 'international' && formData.insuranceInfo.internationalLicenseCountry
+                          ? `International (${formData.insuranceInfo.internationalLicenseCountry})`
+                          : formData.insuranceInfo.driverLicenseType.replace(/-/g, ' ').toUpperCase()
+                      }</div>
+                    )}
+                    {formData.insuranceInfo.driverLicenseIssueDate && (
+                      <div>• License Issue Date: {new Date(formData.insuranceInfo.driverLicenseIssueDate).toLocaleDateString()}</div>
+                    )}
+                    {formData.insuranceInfo.driverClaimsHistory && (
+                      <div>• Claims History: {formData.insuranceInfo.driverClaimsHistory.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</div>
+                    )}
+                    {formData.insuranceInfo.driverRelationship && (
+                      <div>• Relationship: {formData.insuranceInfo.driverRelationship.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</div>
+                    )}
+                    {formData.insuranceInfo.driverMaritalStatus && (
+                      <div>• Marital Status: {formData.insuranceInfo.driverMaritalStatus.replace(/\b\w/g, (l: string) => l.toUpperCase())}</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
