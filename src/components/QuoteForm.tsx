@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ArrowLeft, ArrowRight, User, Phone, Mail, Car, Home as HomeIcon, Shield, Building, CheckCircle, AlertCircle, Eye, FileText, AlertTriangle, Package, Mountain } from 'lucide-react';
+import { ArrowLeft, ArrowRight, User, Phone, Mail, Car, Home as HomeIcon, Shield, Building, CheckCircle, AlertCircle, Eye, FileText, AlertTriangle, Package, Mountain, Calendar } from 'lucide-react';
 import { InsuranceType, Representative } from '../types';
 
 // Interface defining the props that the QuoteForm component expects
@@ -79,6 +79,36 @@ interface FormData {
     countryOther?: string; // For when "other" country is selected
   };
   
+  // Company information section (for business insurance types)
+  companyInfo: {
+    companyName: string;
+    registrationNumber: string;
+    vatNumber: string;
+    businessType: string;
+    businessTypeOther?: string; // For when "other" business type is selected
+    industryType: string;
+    industryTypeOther?: string; // For when "other" industry is selected
+    yearEstablished: string;
+    numberOfEmployees: string;
+    // Contact information
+    email: string;
+    phone: string;
+    alternativePhone?: string;
+    // Physical address
+    streetNumber: string;
+    streetName: string;
+    village: string;
+    areaCode: string;
+    province: string;
+    country: string;
+    countryOther?: string; // For when "other" country is selected
+    // Contact person
+    contactPersonName: string;
+    contactPersonPosition: string;
+    contactPersonEmail: string;
+    contactPersonPhone: string;
+  };
+  
   // Co-insured information (optional)
   coInsured?: {
     hasCoInsured: boolean;
@@ -151,6 +181,31 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
       province: '',
       country: '',
       countryOther: '',
+    },
+    companyInfo: {
+      companyName: '',
+      registrationNumber: '',
+      vatNumber: '',
+      businessType: '',
+      businessTypeOther: '',
+      industryType: '',
+      industryTypeOther: '',
+      yearEstablished: '',
+      numberOfEmployees: '',
+      email: '',
+      phone: '',
+      alternativePhone: '',
+      streetNumber: '',
+      streetName: '',
+      village: '',
+      areaCode: '',
+      province: '',
+      country: '',
+      countryOther: '',
+      contactPersonName: '',
+      contactPersonPosition: '',
+      contactPersonEmail: '',
+      contactPersonPhone: '',
     },
     coInsured: {
       hasCoInsured: false,
@@ -231,8 +286,14 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
 
   // Configuration for form steps based on insurance type
   const getStepsForInsuranceType = (type: InsuranceType) => {
-    const baseSteps = [
+    const personalBaseSteps = [
       { id: 'personal', title: 'Personal Information', icon: User },
+      { id: 'current-situation', title: 'Current Situation', icon: AlertCircle },
+      { id: 'coverage-needs', title: 'Coverage Needs', icon: Shield },
+    ];
+    
+    const businessBaseSteps = [
+      { id: 'company', title: 'Company Information', icon: Building },
       { id: 'current-situation', title: 'Current Situation', icon: AlertCircle },
       { id: 'coverage-needs', title: 'Coverage Needs', icon: Shield },
     ];
@@ -241,7 +302,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     switch (type) {
       case 'auto':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'vehicle-details', title: 'Vehicle Details', icon: Car },
           { id: 'driver-details', title: 'Driver Details', icon: User },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -252,7 +313,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'buildings-insurance':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'property-details', title: 'Buildings Details', icon: HomeIcon },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
           { id: 'preferences', title: 'Preferences & Budget', icon: Building },
@@ -262,7 +323,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'household-contents':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'property-details', title: 'Contents Details', icon: Package },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
           { id: 'preferences', title: 'Preferences & Budget', icon: Building },
@@ -272,7 +333,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'public-liability':
         return [
-          ...baseSteps,
+          ...businessBaseSteps,
           { id: 'business-details', title: 'Business Details', icon: Building },
           { id: 'liability-details', title: 'Liability Coverage', icon: Shield },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -283,7 +344,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'small-business':
         return [
-          ...baseSteps,
+          ...businessBaseSteps,
           { id: 'business-details', title: 'Business Details', icon: Building },
           { id: 'business-assets', title: 'Business Assets', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -294,7 +355,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'commercial-property':
         return [
-          ...baseSteps,
+          ...businessBaseSteps,
           { id: 'property-details', title: 'Property Details', icon: Building },
           { id: 'property-usage', title: 'Property Usage', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -305,7 +366,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'transport-insurance':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'fleet-details', title: 'Fleet Details', icon: Car },
           { id: 'transport-operations', title: 'Operations Details', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -316,7 +377,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'body-corporates':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'scheme-details', title: 'Scheme Details', icon: Building },
           { id: 'common-areas', title: 'Common Areas', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -327,7 +388,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'engineering-construction':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'project-details', title: 'Project Details', icon: Building },
           { id: 'construction-type', title: 'Construction Type', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -338,7 +399,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'aviation-marine':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'asset-details', title: 'Asset Details', icon: Building },
           { id: 'operations', title: 'Operations Details', icon: Building },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
@@ -349,7 +410,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'mining-rehabilitation':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'business-details', title: 'Mining Operation Details', icon: Mountain },
           { id: 'asset-details', title: 'Rehabilitation Requirements', icon: Building },
           { id: 'risk-factors', title: 'Environmental Assessment', icon: CheckCircle },
@@ -360,7 +421,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       case 'e-hailing':
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'vehicle-details', title: 'Vehicle Details', icon: Car },
           { id: 'e-hailing-details', title: 'E-Hailing Details', icon: Car },
           { id: 'driver-details', title: 'Driver Details', icon: User },
@@ -372,7 +433,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         ];
       default:
         return [
-          ...baseSteps,
+          ...personalBaseSteps,
           { id: 'insurance-details', title: 'Insurance Details', icon: Shield },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
           { id: 'preferences', title: 'Preferences & Budget', icon: Building },
@@ -670,6 +731,108 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         }
       }
     }
+    
+    setValidationErrors(prev => ({...prev, ...errors}));
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateCompanyInfo = (): boolean => {
+    const errors: {[key: string]: string} = {};
+    
+    const companyNameError = validateRequired(formData.companyInfo.companyName, 'Company name');
+    if (companyNameError) errors['companyInfo.companyName'] = companyNameError;
+    
+    const registrationNumberError = validateRequired(formData.companyInfo.registrationNumber, 'Registration number');
+    if (registrationNumberError) errors['companyInfo.registrationNumber'] = registrationNumberError;
+    
+    const vatNumberError = validateRequired(formData.companyInfo.vatNumber, 'VAT number');
+    if (vatNumberError) errors['companyInfo.vatNumber'] = vatNumberError;
+    
+    const businessTypeError = validateRequired(formData.companyInfo.businessType, 'Business type');
+    if (businessTypeError) errors['companyInfo.businessType'] = businessTypeError;
+    
+    // Validate business type other specification if "other" is selected
+    if (formData.companyInfo.businessType === 'other') {
+      const businessTypeOtherError = validateRequired(formData.companyInfo.businessTypeOther || '', 'Business type specification');
+      if (businessTypeOtherError) errors['companyInfo.businessTypeOther'] = businessTypeOtherError;
+    }
+    
+    const industryTypeError = validateRequired(formData.companyInfo.industryType, 'Industry type');
+    if (industryTypeError) errors['companyInfo.industryType'] = industryTypeError;
+    
+    // Validate industry type other specification if "other" is selected
+    if (formData.companyInfo.industryType === 'other') {
+      const industryTypeOtherError = validateRequired(formData.companyInfo.industryTypeOther || '', 'Industry type specification');
+      if (industryTypeOtherError) errors['companyInfo.industryTypeOther'] = industryTypeOtherError;
+    }
+    
+    const yearEstablishedError = validateRequired(formData.companyInfo.yearEstablished, 'Year established');
+    if (yearEstablishedError) errors['companyInfo.yearEstablished'] = yearEstablishedError;
+    else if (!/^\d{4}$/.test(formData.companyInfo.yearEstablished)) {
+      errors['companyInfo.yearEstablished'] = 'Year must be 4 digits';
+    } else {
+      const year = parseInt(formData.companyInfo.yearEstablished);
+      const currentYear = new Date().getFullYear();
+      if (year < 1800 || year > currentYear) {
+        errors['companyInfo.yearEstablished'] = `Year must be between 1800 and ${currentYear}`;
+      }
+    }
+    
+    const numberOfEmployeesError = validateRequired(formData.companyInfo.numberOfEmployees, 'Number of employees');
+    if (numberOfEmployeesError) errors['companyInfo.numberOfEmployees'] = numberOfEmployeesError;
+    
+    const emailError = validateEmail(formData.companyInfo.email);
+    if (emailError) errors['companyInfo.email'] = emailError;
+    
+    const phoneError = validatePhone(formData.companyInfo.phone);
+    if (phoneError) errors['companyInfo.phone'] = phoneError;
+    
+    // Alternative phone is optional, but if provided should be valid
+    if (formData.companyInfo.alternativePhone?.trim()) {
+      const altPhoneError = validatePhone(formData.companyInfo.alternativePhone);
+      if (altPhoneError) errors['companyInfo.alternativePhone'] = altPhoneError;
+    }
+    
+    // Physical address validations
+    const streetNumberError = validateRequired(formData.companyInfo.streetNumber, 'Street number');
+    if (streetNumberError) errors['companyInfo.streetNumber'] = streetNumberError;
+    
+    const streetNameError = validateRequired(formData.companyInfo.streetName, 'Street name');
+    if (streetNameError) errors['companyInfo.streetName'] = streetNameError;
+    
+    const villageError = validateRequired(formData.companyInfo.village, 'Village/City');
+    if (villageError) errors['companyInfo.village'] = villageError;
+    
+    const areaCodeError = validateRequired(formData.companyInfo.areaCode, 'Area code');
+    if (areaCodeError) errors['companyInfo.areaCode'] = areaCodeError;
+    else if (!/^\d{4}$/.test(formData.companyInfo.areaCode)) {
+      errors['companyInfo.areaCode'] = 'Area code must be 4 digits';
+    }
+    
+    const provinceError = validateRequired(formData.companyInfo.province, 'Province');
+    if (provinceError) errors['companyInfo.province'] = provinceError;
+    
+    const countryError = validateRequired(formData.companyInfo.country, 'Country');
+    if (countryError) errors['companyInfo.country'] = countryError;
+    
+    // Validate country other specification if "other" is selected
+    if (formData.companyInfo.country === 'other') {
+      const countryOtherError = validateRequired(formData.companyInfo.countryOther || '', 'Country specification');
+      if (countryOtherError) errors['companyInfo.countryOther'] = countryOtherError;
+    }
+    
+    // Contact person validations
+    const contactPersonNameError = validateRequired(formData.companyInfo.contactPersonName, 'Contact person name');
+    if (contactPersonNameError) errors['companyInfo.contactPersonName'] = contactPersonNameError;
+    
+    const contactPersonPositionError = validateRequired(formData.companyInfo.contactPersonPosition, 'Contact person position');
+    if (contactPersonPositionError) errors['companyInfo.contactPersonPosition'] = contactPersonPositionError;
+    
+    const contactPersonEmailError = validateEmail(formData.companyInfo.contactPersonEmail);
+    if (contactPersonEmailError) errors['companyInfo.contactPersonEmail'] = contactPersonEmailError;
+    
+    const contactPersonPhoneError = validatePhone(formData.companyInfo.contactPersonPhone);
+    if (contactPersonPhoneError) errors['companyInfo.contactPersonPhone'] = contactPersonPhoneError;
     
     setValidationErrors(prev => ({...prev, ...errors}));
     return Object.keys(errors).length === 0;
@@ -1429,6 +1592,9 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     switch (stepId) {
       case 'personal':
         isValid = validatePersonalInfo();
+        break;
+      case 'company':
+        isValid = validateCompanyInfo();
         break;
       case 'current-situation':
         isValid = validateCurrentSituation();
@@ -2511,6 +2677,657 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  // Function to render the company information step (for business insurance)
+  const renderCompanyInfo = () => (
+    <div className="space-y-6">
+      {/* Company Name and Registration Number Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Company Name *
+          </label>
+          <div className="relative">
+            <Building className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.companyInfo.companyName}
+              onChange={(e) => updateFormData('companyInfo', 'companyName', e.target.value)}
+              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.companyName') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="Enter company name"
+            />
+          </div>
+          {hasFieldError('companyInfo.companyName') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.companyName')}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Registration Number *
+          </label>
+          <div className="relative">
+            <FileText className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.companyInfo.registrationNumber}
+              onChange={(e) => updateFormData('companyInfo', 'registrationNumber', e.target.value)}
+              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.registrationNumber') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="Enter registration number"
+            />
+          </div>
+          {hasFieldError('companyInfo.registrationNumber') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.registrationNumber')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* VAT Number and Year Established Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            VAT Number *
+          </label>
+          <div className="relative">
+            <FileText className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.companyInfo.vatNumber}
+              onChange={(e) => updateFormData('companyInfo', 'vatNumber', e.target.value)}
+              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.vatNumber') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="Enter VAT number"
+            />
+          </div>
+          {hasFieldError('companyInfo.vatNumber') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.vatNumber')}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Year Established *
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.companyInfo.yearEstablished}
+              onChange={(e) => updateFormData('companyInfo', 'yearEstablished', e.target.value)}
+              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.yearEstablished') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., 2015"
+              maxLength={4}
+            />
+          </div>
+          {hasFieldError('companyInfo.yearEstablished') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.yearEstablished')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Business Type Row */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">
+          Business Type *
+        </label>
+        <select
+          value={formData.companyInfo.businessType}
+          onChange={(e) => updateFormData('companyInfo', 'businessType', e.target.value)}
+          className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+            hasFieldError('companyInfo.businessType') 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-blue-500'
+          }`}
+        >
+          <option value="">Select business type</option>
+          <option value="sole-proprietorship">Sole Proprietorship</option>
+          <option value="partnership">Partnership</option>
+          <option value="private-company">Private Company (Pty Ltd)</option>
+          <option value="public-company">Public Company (Ltd)</option>
+          <option value="close-corporation">Close Corporation (CC)</option>
+          <option value="trust">Trust</option>
+          <option value="ngo">Non-Governmental Organization (NGO)</option>
+          <option value="npc">Non-Profit Company (NPC)</option>
+          <option value="other">Other</option>
+        </select>
+        {hasFieldError('companyInfo.businessType') && (
+          <p className="mt-2 text-sm text-red-600 flex items-center">
+            <AlertTriangle className="w-4 h-4 mr-1" />
+            {getFieldError('companyInfo.businessType')}
+          </p>
+        )}
+      </div>
+
+      {/* Business Type Other Specification */}
+      {formData.companyInfo.businessType === 'other' && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Please Specify Business Type *
+          </label>
+          <input
+            type="text"
+            value={formData.companyInfo.businessTypeOther || ''}
+            onChange={(e) => updateFormData('companyInfo', 'businessTypeOther', e.target.value)}
+            className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+              hasFieldError('companyInfo.businessTypeOther') 
+                ? 'border-red-300 focus:border-red-500' 
+                : 'border-gray-200 focus:border-blue-500'
+            }`}
+            placeholder="Specify business type"
+          />
+          {hasFieldError('companyInfo.businessTypeOther') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.businessTypeOther')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Industry Type Row */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">
+          Industry Type *
+        </label>
+        <select
+          value={formData.companyInfo.industryType}
+          onChange={(e) => updateFormData('companyInfo', 'industryType', e.target.value)}
+          className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+            hasFieldError('companyInfo.industryType') 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-blue-500'
+          }`}
+        >
+          <option value="">Select industry type</option>
+          <option value="retail">Retail</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="construction">Construction</option>
+          <option value="hospitality">Hospitality</option>
+          <option value="healthcare">Healthcare</option>
+          <option value="education">Education</option>
+          <option value="technology">Technology & IT</option>
+          <option value="finance">Finance & Insurance</option>
+          <option value="real-estate">Real Estate</option>
+          <option value="transport">Transport & Logistics</option>
+          <option value="agriculture">Agriculture</option>
+          <option value="professional-services">Professional Services</option>
+          <option value="other">Other</option>
+        </select>
+        {hasFieldError('companyInfo.industryType') && (
+          <p className="mt-2 text-sm text-red-600 flex items-center">
+            <AlertTriangle className="w-4 h-4 mr-1" />
+            {getFieldError('companyInfo.industryType')}
+          </p>
+        )}
+      </div>
+
+      {/* Industry Type Other Specification */}
+      {formData.companyInfo.industryType === 'other' && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Please Specify Industry Type *
+          </label>
+          <input
+            type="text"
+            value={formData.companyInfo.industryTypeOther || ''}
+            onChange={(e) => updateFormData('companyInfo', 'industryTypeOther', e.target.value)}
+            className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+              hasFieldError('companyInfo.industryTypeOther') 
+                ? 'border-red-300 focus:border-red-500' 
+                : 'border-gray-200 focus:border-blue-500'
+            }`}
+            placeholder="Specify industry type"
+          />
+          {hasFieldError('companyInfo.industryTypeOther') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.industryTypeOther')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Number of Employees */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">
+          Number of Employees *
+        </label>
+        <select
+          value={formData.companyInfo.numberOfEmployees}
+          onChange={(e) => updateFormData('companyInfo', 'numberOfEmployees', e.target.value)}
+          className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+            hasFieldError('companyInfo.numberOfEmployees') 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-blue-500'
+          }`}
+        >
+          <option value="">Select number of employees</option>
+          <option value="1-5">1-5 employees</option>
+          <option value="6-10">6-10 employees</option>
+          <option value="11-25">11-25 employees</option>
+          <option value="26-50">26-50 employees</option>
+          <option value="51-100">51-100 employees</option>
+          <option value="101-250">101-250 employees</option>
+          <option value="251-500">251-500 employees</option>
+          <option value="501+">501+ employees</option>
+        </select>
+        {hasFieldError('companyInfo.numberOfEmployees') && (
+          <p className="mt-2 text-sm text-red-600 flex items-center">
+            <AlertTriangle className="w-4 h-4 mr-1" />
+            {getFieldError('companyInfo.numberOfEmployees')}
+          </p>
+        )}
+      </div>
+
+      {/* Company Contact Information Section */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Company Contact Information</h3>
+        
+        {/* Email and Phone Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Company Email *
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <input
+                type="email"
+                value={formData.companyInfo.email}
+                onChange={(e) => updateFormData('companyInfo', 'email', e.target.value)}
+                className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                  hasFieldError('companyInfo.email') 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-blue-500'
+                }`}
+                placeholder="company@example.com"
+              />
+            </div>
+            {hasFieldError('companyInfo.email') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.email')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Company Phone *
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <input
+                type="tel"
+                value={formData.companyInfo.phone}
+                onChange={(e) => updateFormData('companyInfo', 'phone', e.target.value)}
+                className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                  hasFieldError('companyInfo.phone') 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-blue-500'
+                }`}
+                placeholder="011 123 4567"
+              />
+            </div>
+            {hasFieldError('companyInfo.phone') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.phone')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Alternative Phone */}
+        <div className="mt-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Alternative Phone (Optional)
+          </label>
+          <div className="relative">
+            <Phone className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+            <input
+              type="tel"
+              value={formData.companyInfo.alternativePhone || ''}
+              onChange={(e) => updateFormData('companyInfo', 'alternativePhone', e.target.value)}
+              className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.alternativePhone') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="012 345 6789"
+            />
+          </div>
+          {hasFieldError('companyInfo.alternativePhone') && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {getFieldError('companyInfo.alternativePhone')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Company Physical Address Section */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Company Physical Address</h3>
+        
+        {/* Street Number and Street Name Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Street Number *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.streetNumber}
+              onChange={(e) => updateFormData('companyInfo', 'streetNumber', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.streetNumber') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., 123"
+            />
+            {hasFieldError('companyInfo.streetNumber') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.streetNumber')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Street Name *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.streetName}
+              onChange={(e) => updateFormData('companyInfo', 'streetName', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.streetName') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., Main Street"
+            />
+            {hasFieldError('companyInfo.streetName') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.streetName')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Village/City and Area Code Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Village/City *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.village}
+              onChange={(e) => updateFormData('companyInfo', 'village', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.village') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., Johannesburg"
+            />
+            {hasFieldError('companyInfo.village') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.village')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Area Code *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.areaCode}
+              onChange={(e) => updateFormData('companyInfo', 'areaCode', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.areaCode') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., 2000"
+              maxLength={4}
+            />
+            {hasFieldError('companyInfo.areaCode') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.areaCode')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Province and Country Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Province *
+            </label>
+            <select
+              value={formData.companyInfo.province}
+              onChange={(e) => updateFormData('companyInfo', 'province', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.province') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select province</option>
+              <option value="gauteng">Gauteng</option>
+              <option value="western-cape">Western Cape</option>
+              <option value="eastern-cape">Eastern Cape</option>
+              <option value="kwazulu-natal">KwaZulu-Natal</option>
+              <option value="limpopo">Limpopo</option>
+              <option value="mpumalanga">Mpumalanga</option>
+              <option value="northern-cape">Northern Cape</option>
+              <option value="north-west">North West</option>
+              <option value="free-state">Free State</option>
+            </select>
+            {hasFieldError('companyInfo.province') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.province')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Country *
+            </label>
+            <select
+              value={formData.companyInfo.country}
+              onChange={(e) => updateFormData('companyInfo', 'country', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.country') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select country</option>
+              <option value="south-africa">South Africa</option>
+              <option value="other">Other</option>
+            </select>
+            {hasFieldError('companyInfo.country') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.country')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Country Other Specification */}
+        {formData.companyInfo.country === 'other' && (
+          <div className="mt-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Please Specify Country *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.countryOther || ''}
+              onChange={(e) => updateFormData('companyInfo', 'countryOther', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.countryOther') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="Specify country"
+            />
+            {hasFieldError('companyInfo.countryOther') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.countryOther')}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Contact Person Section */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Person Details</h3>
+        
+        {/* Contact Person Name and Position Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Contact Person Name *
+            </label>
+            <div className="relative">
+              <User className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                value={formData.companyInfo.contactPersonName}
+                onChange={(e) => updateFormData('companyInfo', 'contactPersonName', e.target.value)}
+                className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                  hasFieldError('companyInfo.contactPersonName') 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-blue-500'
+                }`}
+                placeholder="Full name"
+              />
+            </div>
+            {hasFieldError('companyInfo.contactPersonName') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.contactPersonName')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Position/Title *
+            </label>
+            <input
+              type="text"
+              value={formData.companyInfo.contactPersonPosition}
+              onChange={(e) => updateFormData('companyInfo', 'contactPersonPosition', e.target.value)}
+              className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                hasFieldError('companyInfo.contactPersonPosition') 
+                  ? 'border-red-300 focus:border-red-500' 
+                  : 'border-gray-200 focus:border-blue-500'
+              }`}
+              placeholder="e.g., Managing Director"
+            />
+            {hasFieldError('companyInfo.contactPersonPosition') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.contactPersonPosition')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Contact Person Email and Phone Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Contact Person Email *
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <input
+                type="email"
+                value={formData.companyInfo.contactPersonEmail}
+                onChange={(e) => updateFormData('companyInfo', 'contactPersonEmail', e.target.value)}
+                className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                  hasFieldError('companyInfo.contactPersonEmail') 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-blue-500'
+                }`}
+                placeholder="person@company.com"
+              />
+            </div>
+            {hasFieldError('companyInfo.contactPersonEmail') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.contactPersonEmail')}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Contact Person Phone *
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <input
+                type="tel"
+                value={formData.companyInfo.contactPersonPhone}
+                onChange={(e) => updateFormData('companyInfo', 'contactPersonPhone', e.target.value)}
+                className={`pl-12 w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-gray-900 ${
+                  hasFieldError('companyInfo.contactPersonPhone') 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-blue-500'
+                }`}
+                placeholder="083 123 4567"
+              />
+            </div>
+            {hasFieldError('companyInfo.contactPersonPhone') && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {getFieldError('companyInfo.contactPersonPhone')}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -11885,90 +12702,171 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           Please review all the information you've provided. You can edit any section by clicking the "Edit" button next to it.
         </p>
 
-        {/* Personal Information Review */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-lg font-semibold text-gray-900">Personal Information</h4>
-            <button
-              onClick={() => handleEditStep('personal')}
-              className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-            >
-              Edit
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><strong>Name:</strong> {formData.personalInfo.firstName} {formData.personalInfo.lastName}</div>
-            <div><strong>Email:</strong> {formData.personalInfo.email}</div>
-            <div><strong>Phone:</strong> {formData.personalInfo.phone}</div>
-            <div><strong>ID Number:</strong> {formData.personalInfo.idNumber}</div>
-            <div><strong>Marital Status:</strong> {formData.personalInfo.maritalStatus.charAt(0).toUpperCase() + formData.personalInfo.maritalStatus.slice(1)}</div>
-            <div><strong>Occupation:</strong> {
-              formData.personalInfo.occupation === 'self-employed' ? 'Self-Employed' :
-              formData.personalInfo.occupation === 'employed' ? 'Work for an Employer' :
-              formData.personalInfo.occupation === 'pensioner' ? 'Pensioner' :
-              formData.personalInfo.occupation === 'unemployed' ? 'Unemployed' :
-              formData.personalInfo.occupation
-            }</div>
-          </div>
-          
-          {/* Physical Address */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <h5 className="font-semibold text-gray-900 mb-2">Physical Address</h5>
-            <div className="text-sm text-gray-700">
-              {formData.personalInfo.streetNumber} {formData.personalInfo.streetName}, {formData.personalInfo.village}, {formData.personalInfo.areaCode}
-              <br />
-              {formData.personalInfo.province.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}, {
-                formData.personalInfo.country === 'other' && formData.personalInfo.countryOther
-                  ? formData.personalInfo.countryOther
-                  : formData.personalInfo.country.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-              }
+        {/* Personal/Company Information Review */}
+        {(insuranceType === 'public-liability' || insuranceType === 'small-business' || insuranceType === 'commercial-property') ? (
+          // Company Information Review (for business insurance types)
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-lg font-semibold text-gray-900">Company Information</h4>
+              <button
+                onClick={() => handleEditStep('company')}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              >
+                Edit
+              </button>
             </div>
-          </div>
-
-          {/* Co-Insured Information */}
-          {formData.coInsured?.hasCoInsured && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div><strong>Company Name:</strong> {formData.companyInfo.companyName}</div>
+              <div><strong>Registration Number:</strong> {formData.companyInfo.registrationNumber}</div>
+              <div><strong>VAT Number:</strong> {formData.companyInfo.vatNumber}</div>
+              <div><strong>Business Type:</strong> {
+                formData.companyInfo.businessType === 'sole-proprietorship' ? 'Sole Proprietorship' :
+                formData.companyInfo.businessType === 'partnership' ? 'Partnership' :
+                formData.companyInfo.businessType === 'private-company' ? 'Private Company (Pty Ltd)' :
+                formData.companyInfo.businessType === 'public-company' ? 'Public Company (Ltd)' :
+                formData.companyInfo.businessType === 'close-corporation' ? 'Close Corporation (CC)' :
+                formData.companyInfo.businessType === 'trust' ? 'Trust' :
+                formData.companyInfo.businessType === 'ngo' ? 'Non-Governmental Organization (NGO)' :
+                formData.companyInfo.businessType === 'npc' ? 'Non-Profit Company (NPC)' :
+                formData.companyInfo.businessType === 'other' && formData.companyInfo.businessTypeOther ? formData.companyInfo.businessTypeOther :
+                formData.companyInfo.businessType
+              }</div>
+              <div><strong>Industry Type:</strong> {
+                formData.companyInfo.industryType === 'retail' ? 'Retail' :
+                formData.companyInfo.industryType === 'manufacturing' ? 'Manufacturing' :
+                formData.companyInfo.industryType === 'construction' ? 'Construction' :
+                formData.companyInfo.industryType === 'hospitality' ? 'Hospitality' :
+                formData.companyInfo.industryType === 'healthcare' ? 'Healthcare' :
+                formData.companyInfo.industryType === 'education' ? 'Education' :
+                formData.companyInfo.industryType === 'technology' ? 'Technology & IT' :
+                formData.companyInfo.industryType === 'finance' ? 'Finance & Insurance' :
+                formData.companyInfo.industryType === 'real-estate' ? 'Real Estate' :
+                formData.companyInfo.industryType === 'transport' ? 'Transport & Logistics' :
+                formData.companyInfo.industryType === 'agriculture' ? 'Agriculture' :
+                formData.companyInfo.industryType === 'professional-services' ? 'Professional Services' :
+                formData.companyInfo.industryType === 'other' && formData.companyInfo.industryTypeOther ? formData.companyInfo.industryTypeOther :
+                formData.companyInfo.industryType
+              }</div>
+              <div><strong>Year Established:</strong> {formData.companyInfo.yearEstablished}</div>
+              <div><strong>Number of Employees:</strong> {formData.companyInfo.numberOfEmployees}</div>
+              <div><strong>Email:</strong> {formData.companyInfo.email}</div>
+              <div><strong>Phone:</strong> {formData.companyInfo.phone}</div>
+              {formData.companyInfo.alternativePhone && (
+                <div><strong>Alternative Phone:</strong> {formData.companyInfo.alternativePhone}</div>
+              )}
+            </div>
+            
+            {/* Company Physical Address */}
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <h5 className="font-semibold text-gray-900 mb-2">Co-Insured Information</h5>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><strong>Name:</strong> {formData.coInsured.firstName} {formData.coInsured.lastName}</div>
-                <div><strong>Email:</strong> {formData.coInsured.email}</div>
-                <div><strong>Phone:</strong> {formData.coInsured.phone}</div>
-                <div><strong>ID Number:</strong> {formData.coInsured.idNumber}</div>
-                <div><strong>Relationship:</strong> {
-                  formData.coInsured.relationship === 'spouse' ? 'Spouse' :
-                  formData.coInsured.relationship === 'partner' ? 'Partner' :
-                  formData.coInsured.relationship === 'parent' ? 'Parent' :
-                  formData.coInsured.relationship === 'child' ? 'Child' :
-                  formData.coInsured.relationship === 'sibling' ? 'Sibling' :
-                  formData.coInsured.relationship === 'other-family' ? 'Other Family Member' :
-                  formData.coInsured.relationship === 'business-partner' ? 'Business Partner' :
-                  formData.coInsured.relationship === 'other' && formData.coInsured.relationshipOther ? formData.coInsured.relationshipOther :
-                  formData.coInsured.relationship === 'other' ? 'Other' :
-                  formData.coInsured.relationship
-                }</div>
+              <h5 className="font-semibold text-gray-900 mb-2">Company Physical Address</h5>
+              <div className="text-sm text-gray-700">
+                {formData.companyInfo.streetNumber} {formData.companyInfo.streetName}, {formData.companyInfo.village}, {formData.companyInfo.areaCode}
+                <br />
+                {formData.companyInfo.province.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}, {
+                  formData.companyInfo.country === 'other' && formData.companyInfo.countryOther
+                    ? formData.companyInfo.countryOther
+                    : formData.companyInfo.country.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                }
               </div>
-              {!formData.coInsured.sameAddress && (
-                <div className="mt-2">
-                  <strong className="text-sm">Address:</strong>
-                  <div className="text-sm text-gray-700">
-                    {formData.coInsured.streetNumber} {formData.coInsured.streetName}, {formData.coInsured.village}, {formData.coInsured.areaCode}
-                    <br />
-                    {formData.coInsured.province?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}, {
-                      formData.coInsured.country === 'other' && formData.coInsured.countryOther
-                        ? formData.coInsured.countryOther
-                        : formData.coInsured.country?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                    }
-                  </div>
-                </div>
-              )}
-              {formData.coInsured.sameAddress && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <em>Same address as client</em>
-                </div>
-              )}
             </div>
-          )}
-        </div>
+
+            {/* Contact Person Information */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h5 className="font-semibold text-gray-900 mb-2">Contact Person</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div><strong>Name:</strong> {formData.companyInfo.contactPersonName}</div>
+                <div><strong>Position:</strong> {formData.companyInfo.contactPersonPosition}</div>
+                <div><strong>Email:</strong> {formData.companyInfo.contactPersonEmail}</div>
+                <div><strong>Phone:</strong> {formData.companyInfo.contactPersonPhone}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Personal Information Review (for non-business insurance types)
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-lg font-semibold text-gray-900">Personal Information</h4>
+              <button
+                onClick={() => handleEditStep('personal')}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              >
+                Edit
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div><strong>Name:</strong> {formData.personalInfo.firstName} {formData.personalInfo.lastName}</div>
+              <div><strong>Email:</strong> {formData.personalInfo.email}</div>
+              <div><strong>Phone:</strong> {formData.personalInfo.phone}</div>
+              <div><strong>ID Number:</strong> {formData.personalInfo.idNumber}</div>
+              <div><strong>Marital Status:</strong> {formData.personalInfo.maritalStatus.charAt(0).toUpperCase() + formData.personalInfo.maritalStatus.slice(1)}</div>
+              <div><strong>Occupation:</strong> {
+                formData.personalInfo.occupation === 'self-employed' ? 'Self-Employed' :
+                formData.personalInfo.occupation === 'employed' ? 'Work for an Employer' :
+                formData.personalInfo.occupation === 'pensioner' ? 'Pensioner' :
+                formData.personalInfo.occupation === 'unemployed' ? 'Unemployed' :
+                formData.personalInfo.occupation
+              }</div>
+            </div>
+            
+            {/* Physical Address */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h5 className="font-semibold text-gray-900 mb-2">Physical Address</h5>
+              <div className="text-sm text-gray-700">
+                {formData.personalInfo.streetNumber} {formData.personalInfo.streetName}, {formData.personalInfo.village}, {formData.personalInfo.areaCode}
+                <br />
+                {formData.personalInfo.province.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}, {
+                  formData.personalInfo.country === 'other' && formData.personalInfo.countryOther
+                    ? formData.personalInfo.countryOther
+                    : formData.personalInfo.country.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                }
+              </div>
+            </div>
+
+            {/* Co-Insured Information */}
+            {formData.coInsured?.hasCoInsured && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h5 className="font-semibold text-gray-900 mb-2">Co-Insured Information</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div><strong>Name:</strong> {formData.coInsured.firstName} {formData.coInsured.lastName}</div>
+                  <div><strong>Email:</strong> {formData.coInsured.email}</div>
+                  <div><strong>Phone:</strong> {formData.coInsured.phone}</div>
+                  <div><strong>ID Number:</strong> {formData.coInsured.idNumber}</div>
+                  <div><strong>Relationship:</strong> {
+                    formData.coInsured.relationship === 'spouse' ? 'Spouse' :
+                    formData.coInsured.relationship === 'partner' ? 'Partner' :
+                    formData.coInsured.relationship === 'parent' ? 'Parent' :
+                    formData.coInsured.relationship === 'child' ? 'Child' :
+                    formData.coInsured.relationship === 'sibling' ? 'Sibling' :
+                    formData.coInsured.relationship === 'other-family' ? 'Other Family Member' :
+                    formData.coInsured.relationship === 'business-partner' ? 'Business Partner' :
+                    formData.coInsured.relationship === 'other' && formData.coInsured.relationshipOther ? formData.coInsured.relationshipOther :
+                    formData.coInsured.relationship === 'other' ? 'Other' :
+                    formData.coInsured.relationship
+                  }</div>
+                </div>
+                {!formData.coInsured.sameAddress && (
+                  <div className="mt-2">
+                    <strong className="text-sm">Address:</strong>
+                    <div className="text-sm text-gray-700">
+                      {formData.coInsured.streetNumber} {formData.coInsured.streetName}, {formData.coInsured.village}, {formData.coInsured.areaCode}
+                      <br />
+                      {formData.coInsured.province?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}, {
+                        formData.coInsured.country === 'other' && formData.coInsured.countryOther
+                          ? formData.coInsured.countryOther
+                          : formData.coInsured.country?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                      }
+                    </div>
+                  </div>
+                )}
+                {formData.coInsured.sameAddress && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <em>Same address as client</em>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Current Situation Review */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -13528,6 +14426,8 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     switch (stepId) {
       case 'personal':
         return renderPersonalInfoStep();
+      case 'company':
+        return renderCompanyInfo();
       case 'current-situation':
         return renderCurrentSituationStep();
       case 'coverage-needs':
