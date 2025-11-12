@@ -17,6 +17,7 @@ interface NeedsAnalysisData {
   currentSituation: {
     hasExistingInsurance: boolean;
     currentProvider?: string;
+    policyNumber?: string;
     policyStartDate?: string;
     claimsHistory: {
       hasClaimsLastThreeYears: boolean;
@@ -32,7 +33,7 @@ interface NeedsAnalysisData {
   // Coverage preferences
   coveragePreferences: {
     preferredExcess: string;
-    coverageLevel: 'basic' | 'comprehensive' | 'premium';
+    coverageLevel: 'basic' | 'comprehensive' | 'premium' | 'third-party-theft' | 'third-party-only';
     additionalCoverage: string[];
     additionalCoverRequirements?: string;
   };
@@ -306,7 +307,6 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           { id: 'vehicle-details', title: 'Vehicle Details', icon: Car },
           { id: 'driver-details', title: 'Driver Details', icon: User },
           { id: 'risk-factors', title: 'Risk Assessment', icon: CheckCircle },
-          { id: 'preferences', title: 'Preferences & Budget', icon: Building },
           { id: 'review', title: 'Review Information', icon: Eye },
           { id: 'disclosure', title: 'FAIS Disclosure', icon: FileText },
           { id: 'consent', title: 'Consent', icon: CheckCircle },
@@ -845,6 +845,10 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
     if (formData.needsAnalysis.currentSituation.hasExistingInsurance) {
       if (!formData.needsAnalysis.currentSituation.currentProvider?.trim()) {
         errors['needsAnalysis.currentSituation.currentProvider'] = 'Current provider is required';
+      }
+      // For car insurance, policy number is required when has existing insurance
+      if (insuranceType === 'auto' && !formData.needsAnalysis.currentSituation.policyNumber?.trim()) {
+        errors['needsAnalysis.currentSituation.policyNumber'] = 'Policy number is required';
       }
     }
     
@@ -3412,6 +3416,42 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
               />
             </div>
 
+            {insuranceType === 'auto' && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Policy Number *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter your current policy number"
+                  value={formData.needsAnalysis.currentSituation.policyNumber || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    needsAnalysis: {
+                      ...prev.needsAnalysis,
+                      currentSituation: {
+                        ...prev.needsAnalysis.currentSituation,
+                        policyNumber: e.target.value
+                      }
+                    }
+                  }))}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors['needsAnalysis.currentSituation.policyNumber'] 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['needsAnalysis.currentSituation.policyNumber'] && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-600">
+                      {validationErrors['needsAnalysis.currentSituation.policyNumber']}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-blue-50 p-4 rounded-lg">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 When did this Policy Start?
@@ -3781,66 +3821,133 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
             What level of coverage do you prefer? *
           </label>
           <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="coverageLevel"
-                value="basic"
-                checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'basic'}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  needsAnalysis: {
-                    ...prev.needsAnalysis,
-                    coveragePreferences: {
-                      ...prev.needsAnalysis.coveragePreferences,
-                      coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
-                    }
-                  }
-                }))}
-                className="mr-2"
-              />
-              <span>Basic - Essential coverage only</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="coverageLevel"
-                value="comprehensive"
-                checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'comprehensive'}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  needsAnalysis: {
-                    ...prev.needsAnalysis,
-                    coveragePreferences: {
-                      ...prev.needsAnalysis.coveragePreferences,
-                      coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
-                    }
-                  }
-                }))}
-                className="mr-2"
-              />
-              <span>Comprehensive - Standard protection</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="coverageLevel"
-                value="premium"
-                checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'premium'}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  needsAnalysis: {
-                    ...prev.needsAnalysis,
-                    coveragePreferences: {
-                      ...prev.needsAnalysis.coveragePreferences,
-                      coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
-                    }
-                  }
-                }))}
-                className="mr-2"
-              />
-              <span>Premium - Maximum protection with extras</span>
-            </label>
+            {insuranceType === 'auto' ? (
+              <>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="comprehensive"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'comprehensive'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as any
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Comprehensive Cover - Complete protection including damage, theft, and third-party liability</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="third-party-theft"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'third-party-theft'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as any
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Third Party and Theft Cover - Covers theft and damage to other vehicles/property</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="third-party-only"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'third-party-only'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as any
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Third Party only Cover - Covers only damage to other vehicles/property</span>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="basic"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'basic'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Basic - Essential coverage only</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="comprehensive"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'comprehensive'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Comprehensive - Standard protection</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="coverageLevel"
+                    value="premium"
+                    checked={formData.needsAnalysis.coveragePreferences.coverageLevel === 'premium'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          coverageLevel: e.target.value as 'basic' | 'comprehensive' | 'premium'
+                        }
+                      }
+                    }))}
+                    className="mr-2"
+                  />
+                  <span>Premium - Maximum protection with extras</span>
+                </label>
+              </>
+            )}
           </div>
           {validationErrors['needsAnalysis.coveragePreferences.coverageLevel'] && (
             <div className="mt-2 flex items-center space-x-2">
@@ -3899,27 +4006,106 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
         {/* Additional Cover Requirements */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Do you require any additional cover?
+            {insuranceType === 'auto' ? 'Select additional cover options' : 'Do you require any additional cover?'}
           </label>
-          <textarea
-            value={formData.needsAnalysis.coveragePreferences.additionalCoverRequirements || ''}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              needsAnalysis: {
-                ...prev.needsAnalysis,
-                coveragePreferences: {
-                  ...prev.needsAnalysis.coveragePreferences,
-                  additionalCoverRequirements: e.target.value
-                }
-              }
-            }))}
-            rows={4}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Please describe any additional cover you need (e.g., windscreen cover, hail damage, theft of contents, roadside assistance, etc.)"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Optional: Specify any specific coverage you'd like to include beyond standard comprehensive insurance
-          </p>
+          {insuranceType === 'auto' ? (
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  value="trailer"
+                  checked={formData.needsAnalysis.coveragePreferences.additionalCoverage.includes('trailer')}
+                  onChange={(e) => {
+                    const newCoverage = e.target.checked
+                      ? [...formData.needsAnalysis.coveragePreferences.additionalCoverage, 'trailer']
+                      : formData.needsAnalysis.coveragePreferences.additionalCoverage.filter(c => c !== 'trailer');
+                    setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          additionalCoverage: newCoverage
+                        }
+                      }
+                    }));
+                  }}
+                  className="mr-2"
+                />
+                <span>Trailer Cover - Protection for your trailer</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  value="tire"
+                  checked={formData.needsAnalysis.coveragePreferences.additionalCoverage.includes('tire')}
+                  onChange={(e) => {
+                    const newCoverage = e.target.checked
+                      ? [...formData.needsAnalysis.coveragePreferences.additionalCoverage, 'tire']
+                      : formData.needsAnalysis.coveragePreferences.additionalCoverage.filter(c => c !== 'tire');
+                    setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          additionalCoverage: newCoverage
+                        }
+                      }
+                    }));
+                  }}
+                  className="mr-2"
+                />
+                <span>Tire Cover - Coverage for tire damage and replacement</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  value="accidental-damage"
+                  checked={formData.needsAnalysis.coveragePreferences.additionalCoverage.includes('accidental-damage')}
+                  onChange={(e) => {
+                    const newCoverage = e.target.checked
+                      ? [...formData.needsAnalysis.coveragePreferences.additionalCoverage, 'accidental-damage']
+                      : formData.needsAnalysis.coveragePreferences.additionalCoverage.filter(c => c !== 'accidental-damage');
+                    setFormData(prev => ({
+                      ...prev,
+                      needsAnalysis: {
+                        ...prev.needsAnalysis,
+                        coveragePreferences: {
+                          ...prev.needsAnalysis.coveragePreferences,
+                          additionalCoverage: newCoverage
+                        }
+                      }
+                    }));
+                  }}
+                  className="mr-2"
+                />
+                <span>Accidental Damage - Coverage for accidental damage to your vehicle</span>
+              </label>
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={formData.needsAnalysis.coveragePreferences.additionalCoverRequirements || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  needsAnalysis: {
+                    ...prev.needsAnalysis,
+                    coveragePreferences: {
+                      ...prev.needsAnalysis.coveragePreferences,
+                      additionalCoverRequirements: e.target.value
+                    }
+                  }
+                }))}
+                rows={4}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Please describe any additional cover you need (e.g., windscreen cover, hail damage, theft of contents, roadside assistance, etc.)"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Optional: Specify any specific coverage you'd like to include beyond standard comprehensive insurance
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -4198,7 +4384,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vehicle Value (Market Value) *
+              M&M Code (Vehicle Value) *
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R</span>
@@ -4211,7 +4397,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                     ? 'border-red-300 bg-red-50' 
                     : 'border-gray-300'
                 }`}
-                placeholder="Enter vehicle market value"
+                placeholder="Enter vehicle M&M code value"
                 min="0"
               />
             </div>
@@ -4251,7 +4437,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                 name="driverSameAsInsured"
                 value="true"
                 checked={formData.insuranceInfo.driverSameAsInsured === true}
-                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', String(e.target.value === 'true'))}
+                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', e.target.value === 'true')}
                 className="mr-2"
               />
               <span>Yes, I am the driver</span>
@@ -4262,7 +4448,7 @@ export function QuoteForm({ insuranceType, onSubmit, onBack, loading = false, as
                 name="driverSameAsInsured"
                 value="false"
                 checked={formData.insuranceInfo.driverSameAsInsured === false}
-                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', String(e.target.value === 'true'))}
+                onChange={(e) => updateFormData('insuranceInfo', 'driverSameAsInsured', e.target.value === 'true')}
                 className="mr-2"
               />
               <span>No, someone else will be driving</span>
